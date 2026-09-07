@@ -2,7 +2,6 @@ import React from 'react';
 import {
   Wind,
   Layers,
-  Database,
   FileSpreadsheet,
   BookOpen,
   ExternalLink,
@@ -12,7 +11,7 @@ import {
   Zap,
 } from 'lucide-react';
 
-export type ActiveModule = 'reanalysis' | 'catalog' | 'dossier' | 'methodology';
+export type ActiveModule = 'reanalysis' | 'dossier' | 'methodology';
 
 interface SidebarProps {
   activeModule: ActiveModule;
@@ -119,26 +118,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <span>Reanálises</span>
               <span className={`text-[10px] font-normal ${activeModule === 'reanalysis' ? 'text-cyan-100' : 'text-zinc-500'}`}>
                 ERA5 & MERRA-2 (30 Anos)
-              </span>
-            </div>
-          </button>
-
-          {/* Module 2: Catálogo ONS */}
-          <button
-            onClick={() => handleSelect('catalog')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
-              activeModule === 'catalog'
-                ? 'bg-gradient-to-r from-emerald-600 to-emerald-700 text-white shadow-lg shadow-emerald-600/30'
-                : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-            }`}
-          >
-            <Database className="w-4 h-4 shrink-0" />
-            <div className="flex flex-col">
-              <span>Catálogo ONS</span>
-              <span className={`text-[10px] font-normal ${activeModule === 'catalog' ? 'text-emerald-100' : 'text-zinc-500'}`}>
-                Parques, Conjuntos & SEs
               </span>
             </div>
           </button>

@@ -84,25 +84,30 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
         },
       },
       legend: {
+        type: 'plain',
         data: ['Amostras Concomitantes', 'Reta de Regressão', 'Linha 1:1 (Ideal)'],
         textStyle: { color: '#a1a1aa', fontSize: 11 },
-        top: 0,
+        top: 4,
+        left: 20,
+        right: 65,
+        itemGap: 14,
       },
       grid: {
         left: '4%',
         right: '4%',
         bottom: '10%',
-        top: '12%',
+        top: 48,
         containLabel: true,
       },
       toolbox: {
+        top: 4,
+        right: 12,
         feature: {
           dataZoom: {},
           restore: {},
           saveAsImage: { name: `MCP_Correlation_${ensembleName}_${nodeTitle}` },
         },
         iconStyle: { borderColor: '#a1a1aa' },
-        right: 15,
       },
       xAxis: {
         type: 'value',

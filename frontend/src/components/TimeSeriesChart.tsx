@@ -47,6 +47,40 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     return Array.from(set).sort();
   }, [data]);
 
+  const hasMeasured = useMemo(
+    () => data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined),
+    [data]
+  );
+
+  const hasInvalid = useMemo(
+    () => data.some((d) => (d.invalid_wind_pct ?? 0) > 0),
+    [data]
+  );
+
+  const mainMeasuredLabel = useMemo(() => {
+    return selectedPlant && selectedPlant !== 'Média do Conjunto'
+      ? `Vento Medido (${selectedPlant})`
+      : 'Vento Medido (Média Conjunto)';
+  }, [selectedPlant]);
+
+  const legendItems = useMemo(() => {
+    const items = ['Vento a 100m (Hub)'];
+    if (hasMeasured) items.push(mainMeasuredLabel);
+    plantNames.forEach((p) => {
+      items.push(`Usina: ${p}`);
+    });
+    items.push('Vento a 10m (Superfície)');
+    if (aggregation === 'daily') items.push('Rajada Máxima Diária');
+    if (hasInvalid) items.push('Flag Vento Inválido (%)');
+    return items;
+  }, [hasMeasured, mainMeasuredLabel, plantNames, aggregation, hasInvalid]);
+
+  // Altura dinâmica variável dependendo da quantidade de itens de legenda
+  // Cada linha de legenda comporta ~3 itens em telas comuns.
+  const estimatedLegendRows = Math.max(1, Math.ceil(legendItems.length / 3));
+  const gridTop = 46 + (estimatedLegendRows - 1) * 28;
+  const dynamicChartHeight = 380 + (estimatedLegendRows - 1) * 32;
+
   const option = useMemo(() => {
     const times = data.map((d) => d.time);
     const speeds100 = data.map((d) => d.speed_100m);
@@ -55,26 +89,10 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     const speedsMeasured = data.map((d) => d.speed_measured ?? null);
     const invalidFlags = data.map((d) => d.invalid_wind_pct ?? 0);
 
-    const hasMeasured = data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined);
-    const hasInvalid = data.some((d) => (d.invalid_wind_pct ?? 0) > 0);
     const isCyan = model === 'ERA5';
     const primaryColor = isCyan ? '#06b6d4' : '#f59e0b';
     const measuredColor = '#10b981'; // Emerald para série medida ativa
     const secondaryColor = '#818cf8'; // Índigo para vento 10m
-
-    const mainMeasuredLabel = selectedPlant && selectedPlant !== 'Média do Conjunto'
-      ? `Vento Medido (${selectedPlant})`
-      : 'Vento Medido (Média Conjunto)';
-
-    const legendItems = ['Vento a 100m (Hub)'];
-    if (hasMeasured) legendItems.push(mainMeasuredLabel);
-    // Incluir usinas individuais na legenda se disponíveis
-    plantNames.forEach((p) => {
-      legendItems.push(`Usina: ${p}`);
-    });
-    legendItems.push('Vento a 10m (Superfície)');
-    if (aggregation === 'daily') legendItems.push('Rajada Máxima Diária');
-    if (hasInvalid) legendItems.push('Flag Vento Inválido (%)');
 
     const seriesList: any[] = [
       {
@@ -181,26 +199,33 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         },
       },
       legend: {
+        type: 'plain',
         data: legendItems,
         textStyle: { color: '#a1a1aa', fontSize: 11 },
-        top: 0,
-        type: 'scroll',
+        top: 4,
+        left: 20,
+        right: 65,
+        orient: 'horizontal',
+        itemGap: 14,
+        itemWidth: 20,
+        itemHeight: 10,
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '15%',
-        top: '12%',
+        top: gridTop,
         containLabel: true,
       },
       toolbox: {
+        top: 4,
+        right: 12,
         feature: {
           dataZoom: { yAxisIndex: 'none' },
           restore: {},
           saveAsImage: { name: `WindSeries_${nodeTitle}` },
         },
         iconStyle: { borderColor: '#a1a1aa' },
-        right: 15,
       },
       dataZoom: [
         {
@@ -315,17 +340,30 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       </div>
 
       {isLoading ? (
-        <div className="h-[380px] flex items-center justify-center text-xs text-zinc-500">
+        <div
+          className="flex items-center justify-center text-xs text-zinc-500 transition-all duration-300"
+          style={{ height: `${dynamicChartHeight}px` }}
+        >
           Carregando série temporal de reanálise...
         </div>
       ) : data.length === 0 ? (
-        <div className="h-[380px] flex flex-col items-center justify-center text-xs text-zinc-500 space-y-2">
+        <div
+          className="flex flex-col items-center justify-center text-xs text-zinc-500 space-y-2 transition-all duration-300"
+          style={{ height: `${dynamicChartHeight}px` }}
+        >
           <p>Nenhuma série carregada para este nó.</p>
           <p className="text-zinc-600">Clique em "Baixar Série" para processar dados de 30 anos.</p>
         </div>
       ) : (
-        <div className="w-full h-[380px]">
-          <ReactECharts option={option} style={{ height: '100%', width: '100%' }} />
+        <div
+          className="w-full transition-all duration-300"
+          style={{ height: `${dynamicChartHeight}px` }}
+        >
+          <ReactECharts
+            option={option}
+            style={{ height: '100%', width: '100%' }}
+            opts={{ renderer: 'canvas' }}
+          />
         </div>
       )}
     </div>

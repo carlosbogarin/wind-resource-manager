@@ -26,7 +26,6 @@ import { WindRoseChart } from './components/WindRoseChart';
 import { WeibullChart } from './components/WeibullChart';
 import { CapacityFactorComparison } from './components/CapacityFactorComparison';
 import { ExportToolbar } from './components/ExportToolbar';
-import { CatalogView } from './components/CatalogView';
 import { DossierView } from './components/DossierView';
 import { MethodologyView } from './components/MethodologyView';
 import {
@@ -792,20 +791,6 @@ export const App: React.FC = () => {
                 )}
               </section>
             </div>
-          )}
-
-          {/* ======================================================== */}
-          {/* MODULE 2: CATÁLOGO ONS                                   */}
-          {/* ======================================================== */}
-          {activeModule === 'catalog' && (
-            <CatalogView
-              ensembles={ensembles}
-              onSelectEnsemble={(idOns) => {
-                setSelectedIdOns(idOns);
-                setActiveModule('reanalysis');
-              }}
-              theme={theme}
-            />
           )}
 
           {/* ======================================================== */}
