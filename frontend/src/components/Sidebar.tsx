@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Wind,
-  FileSpreadsheet,
   BookOpen,
   ExternalLink,
   X,
@@ -11,7 +10,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 
-export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'dossier' | 'methodology';
+export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'methodology';
 
 interface SidebarProps {
   activeModule: ActiveModule;
@@ -243,34 +242,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </button>
-
-          {/* Module 3: Dossiê & Exportação */}
-          <button
-            type="button"
-            onClick={() => handleSelect('dossier')}
-            title="Dossiê & Exportação (CSV, Parquet & Sumários)"
-            className={`w-full h-12 flex items-center ${
-              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
-            } rounded-xl text-xs font-semibold transition-all text-left ${
-              activeModule === 'dossier'
-                ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-600/30'
-                : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-            }`}
-          >
-            <FileSpreadsheet className="w-6 h-6 shrink-0" />
-            {!isCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="truncate">Dossiê & Exportação</span>
-                <span className={`text-[10px] font-normal ${activeModule === 'dossier' ? 'text-purple-100' : 'text-zinc-500'} truncate`}>
-                  CSV, Parquet & Sumários
-                </span>
-              </div>
-            )}
-          </button>
-
-          {/* Module 4: Metodologia */}
+          {/* Module 3: Metodologia */}
           <button
             type="button"
             onClick={() => handleSelect('methodology')}

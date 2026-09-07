@@ -29,7 +29,6 @@ import { SeasonalityChart } from './components/SeasonalityChart';
 import { WindRoseChart } from './components/WindRoseChart';
 import { WeibullChart } from './components/WeibullChart';
 import { ExportToolbar } from './components/ExportToolbar';
-import { DossierView } from './components/DossierView';
 import { MethodologyView } from './components/MethodologyView';
 import {
   BarChart3,
@@ -1083,23 +1082,7 @@ export const App: React.FC = () => {
           )}
 
           {/* ======================================================== */}
-          {/* MODULE 3: DOSSIÊ & EXPORTAÇÃO                            */}
-          {/* ======================================================== */}
-          {activeModule === 'dossier' && (
-            <DossierView
-              ensemble={activeEnsemble || null}
-              companyName={selectedCompany}
-              selectedNode={selectedNode}
-              startYear={startYear}
-              endYear={endYear}
-              startPeriod={startPeriod}
-              endPeriod={endPeriod}
-              theme={theme}
-            />
-          )}
-
-          {/* ======================================================== */}
-          {/* MODULE 4: METODOLOGIA                                    */}
+          {/* MODULE 3: METODOLOGIA                                    */}
           {/* ======================================================== */}
           {activeModule === 'methodology' && (
             <MethodologyView theme={theme} />

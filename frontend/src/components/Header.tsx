@@ -25,10 +25,7 @@ const MODULE_METADATA: Record<
     title: 'Reanálises - Manual',
     description: 'Coordenadas Geográficas Alvo & Extrapolação Horizontal Geodésica',
   },
-  dossier: {
-    title: 'Dossiê & Exportação',
-    description: 'Exportação em Formato CSV, Arquivo Colunar Parquet & Sumários Técnicos',
-  },
+
   methodology: {
     title: 'Metodologia',
     description: 'Formulação Matemática, Padrões Normativos (WMO/IEC) & Malhas de Reanálise',
