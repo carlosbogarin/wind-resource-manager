@@ -1,20 +1,49 @@
-﻿import React from 'react';
-import { Wind, Activity, Sun, Moon, Menu } from 'lucide-react';
+import React from 'react';
+import { Activity, Sun, Moon, Menu } from 'lucide-react';
+import { ActiveModule } from './Sidebar';
 
 interface HeaderProps {
+  activeModule?: ActiveModule;
   activeEnsembleName?: string;
   theme: 'light' | 'dark';
   onToggleTheme: (theme: 'light' | 'dark') => void;
   onToggleSidebar?: () => void;
 }
 
+const MODULE_METADATA: Record<
+  ActiveModule,
+  {
+    title: string;
+    description: string;
+  }
+> = {
+  reanalysis: {
+    title: 'Reanálises - ONS',
+    description: 'Séries Históricas de 30 Anos • ERA5 (0.25°) & MERRA-2 (0.5°x0.625°)',
+  },
+  reanalysis_manual: {
+    title: 'Reanálises - Manual',
+    description: 'Coordenadas Geográficas Alvo & Extrapolação Horizontal Geodésica',
+  },
+  dossier: {
+    title: 'Dossiê & Exportação',
+    description: 'Exportação em Formato CSV, Arquivo Colunar Parquet & Sumários Técnicos',
+  },
+  methodology: {
+    title: 'Metodologia',
+    description: 'Formulação Matemática, Padrões Normativos (WMO/IEC) & Malhas de Reanálise',
+  },
+};
+
 export const Header: React.FC<HeaderProps> = ({
+  activeModule = 'reanalysis',
   activeEnsembleName,
   theme,
   onToggleTheme,
   onToggleSidebar,
 }) => {
   const isLight = theme === 'light';
+  const metadata = MODULE_METADATA[activeModule] || MODULE_METADATA.reanalysis;
 
   return (
     <header className={`border-b ${
@@ -42,22 +71,18 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className={`text-base sm:text-lg font-bold tracking-tight flex items-center gap-2 ${
                 isLight ? 'text-slate-900' : 'text-white'
               }`}>
-                <span>Wind Resource Manager</span>
+                <span>{metadata.title}</span>
               </h1>
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400 flex items-center gap-1.5 mt-0.5">
-              <span>Séries Históricas de 30 Anos</span>
-              <span className="text-slate-400 dark:text-zinc-600">•</span>
-              <span className="text-cyan-600 dark:text-cyan-400 font-medium">ERA5 (0.25°)</span>
-              <span className="text-slate-400 dark:text-zinc-600">&</span>
-              <span className="text-amber-600 dark:text-amber-400 font-medium">MERRA-2 (0.5°x0.625°)</span>
+              <span>{metadata.description}</span>
             </p>
           </div>
         </div>
 
         {/* Right: Active Ensemble & Theme Switcher */}
         <div className="flex items-center gap-2.5">
-          {activeEnsembleName && (
+          {activeEnsembleName && activeModule === 'reanalysis' && (
             <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-medium">
               <Activity className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 animate-pulse" />
               <span>Conjunto: <strong>{activeEnsembleName}</strong></span>

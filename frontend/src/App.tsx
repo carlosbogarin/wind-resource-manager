@@ -629,6 +629,7 @@ export const App: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header without unnecessary pills, with theme toggle */}
         <Header
+          activeModule={activeModule}
           activeEnsembleName={activeModule === 'reanalysis' ? activeEnsemble?.ensemble_name : undefined}
           theme={theme}
           onToggleTheme={setTheme}
