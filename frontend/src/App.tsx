@@ -28,7 +28,6 @@ import { DiurnalProfileChart } from './components/DiurnalProfileChart';
 import { SeasonalityChart } from './components/SeasonalityChart';
 import { WindRoseChart } from './components/WindRoseChart';
 import { WeibullChart } from './components/WeibullChart';
-import { CapacityFactorComparison } from './components/CapacityFactorComparison';
 import { ExportToolbar } from './components/ExportToolbar';
 import { DossierView } from './components/DossierView';
 import { MethodologyView } from './components/MethodologyView';
@@ -36,7 +35,6 @@ import {
   BarChart3,
   Compass,
   Clock,
-  Zap,
   Download,
   AlertCircle,
   CheckCircle2,
@@ -160,7 +158,7 @@ export const App: React.FC = () => {
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
   const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('hourly');
   const [selectedPlant, setSelectedPlant] = useState<string>('Média do Conjunto');
-  const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
+  const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const autoDownloadedEnsembleRef = React.useRef<string | null>(null);
 
@@ -498,7 +496,7 @@ export const App: React.FC = () => {
 
   // Se estiver em modo manual, garante que abas exclusivas do ONS não fiquem ativas
   useEffect(() => {
-    if (isManualModule && (activeTab === 'correlation' || activeTab === 'ons')) {
+    if (isManualModule && activeTab === 'correlation') {
       setActiveTab('timeseries');
     }
   }, [isManualModule, activeTab]);
@@ -976,22 +974,6 @@ export const App: React.FC = () => {
                     <span>Perfis Diurno & Sazonal</span>
                   </button>
 
-                  {!isManualModule && (
-                    <button
-                      type="button"
-                      onClick={() => setActiveTab('ons')}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                        activeTab === 'ons'
-                          ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30'
-                          : isLight
-                          ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-                      }`}
-                    >
-                      <Zap className="w-4 h-4" />
-                      <span>Fator de Capacidade Real ONS</span>
-                    </button>
-                  )}
                 </div>
 
                 {/* Tab 1: Time Series Chart */}
@@ -1095,27 +1077,6 @@ export const App: React.FC = () => {
                   </div>
                 )}
 
-                {/* Tab 4: ONS Real Capacity Factor Comparison */}
-                {activeTab === 'ons' && (
-                  activeEnsemble ? (
-                    <CapacityFactorComparison
-                      data={analyticsData?.ons_correlation || []}
-                      ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
-                    />
-                  ) : (
-                    <div className={`p-8 rounded-2xl border text-center space-y-3 ${
-                      isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900/80 border-zinc-800 text-zinc-400'
-                    }`}>
-                      <Zap className="w-8 h-8 text-purple-500 mx-auto" />
-                      <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">
-                        Fator de Capacidade Real ONS
-                      </h3>
-                      <p className="text-xs max-w-md mx-auto">
-                        O Fator de Capacidade Real é disponibilizado para conjuntos cadastrados na base do ONS. No módulo 'Reanálises - ONS', você poderá cruzar o histórico mensal de geração e FC com a velocidade da reanálise.
-                      </p>
-                    </div>
-                  )
-                )}
               </section>
             </div>
           )}
@@ -1152,7 +1113,7 @@ export const App: React.FC = () => {
             <strong>Wind Resource Manager</strong> • Avaliação de Recurso Eólico no Brasil
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
-            Dados: ONS (Fator de Capacidade & Capacidade de Geração) • ECMWF ERA5 (0.25°) • NASA MERRA-2 (0.5°x0.625°)
+            Dados: ONS (Anemômetros & Metadados Operacionais) • ECMWF ERA5 (0.25°) • NASA MERRA-2 (0.5°x0.625°)
           </p>
         </footer>
       </div>
