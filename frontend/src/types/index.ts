@@ -1,4 +1,4 @@
-﻿export interface CompanySummary {
+export interface CompanySummary {
   company_name: string;
   total_ensembles: number;
   total_mw: number;
@@ -57,6 +57,18 @@ export interface NodesResponse {
   substation: SubstationGeo;
   era5_nodes: ReanalysisNode[];
   merra2_nodes: ReanalysisNode[];
+}
+
+export interface DateRangeInfo {
+  era5_latest_date: string;
+  merra2_latest_date: string;
+  common_end_date: string;
+  common_start_date: string;
+  start_year: number;
+  end_year: number;
+  total_years: number;
+  limiting_model: string;
+  explanation: string;
 }
 
 export interface DownloadResponse {

@@ -1,9 +1,10 @@
-﻿import axios from 'axios';
+import axios from 'axios';
 import {
   CompanySummary,
   Ensemble,
   EnsembleDetail,
   NodesResponse,
+  DateRangeInfo,
   DownloadResponse,
   TimeSeriesResponse,
   AnalyticsData,
@@ -40,6 +41,11 @@ export const fetchNodes = async (id_ons: string): Promise<NodesResponse> => {
   const { data } = await api.get<NodesResponse>('/reanalysis/nodes', {
     params: { id_ons },
   });
+  return data;
+};
+
+export const fetchDateRange = async (): Promise<DateRangeInfo> => {
+  const { data } = await api.get<DateRangeInfo>('/reanalysis/date-range');
   return data;
 };
 

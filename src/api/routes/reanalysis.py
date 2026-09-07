@@ -10,6 +10,7 @@ from src.analytics.weibull import fit_weibull
 from src.analytics.wind_rose import calculate_wind_rose
 from src.api.schemas.reanalysis import (
     AnalyticsResponse,
+    DateRangeResponse,
     DownloadRequest,
     DownloadResponse,
     NodeModel,
@@ -17,12 +18,23 @@ from src.api.schemas.reanalysis import (
     SubstationGeo,
 )
 from src.core.grid_math import get_era5_bounding_nodes, get_merra2_bounding_nodes
+from src.etl.date_range_checker import get_synchronized_30y_date_range
 from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import fetch_and_cache_merra2, get_merra2_cache_path, load_merra2_series
 from src.etl.ons_catalog import get_ensemble_details
 
 logger = logging.getLogger("api.reanalysis")
 router = APIRouter(prefix="/reanalysis", tags=["Reanálise ERA5 & MERRA-2"])
+
+
+@router.get("/date-range", response_model=DateRangeResponse)
+def get_date_range(force: bool = Query(default=False)):
+    """Verifica a data mais recente disponível entre ERA5 e MERRA-2 e emparelha os últimos 30 anos."""
+    try:
+        return get_synchronized_30y_date_range(force_refresh=force)
+    except Exception as e:
+        logger.error(f"Erro ao verificar intervalo de datas emparelhado: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/nodes", response_model=NodesResponse)

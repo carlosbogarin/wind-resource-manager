@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCompanies,
@@ -7,6 +7,7 @@ import {
   fetchTimeSeries,
   fetchAnalytics,
   downloadNodeData,
+  fetchDateRange,
 } from './services/api';
 import { ReanalysisNode, Ensemble } from './types';
 import { Sidebar, ActiveModule } from './components/Sidebar';
@@ -34,6 +35,8 @@ import {
   AlertCircle,
   CheckCircle2,
   Calendar,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -73,6 +76,21 @@ export const App: React.FC = () => {
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
   const [activeTab, setActiveTab] = useState<'timeseries' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // 3.1. Fetch Dynamically Synchronized 30-Year Date Range (Emparelhamento ERA5 e MERRA-2)
+  const { data: dateRangeData } = useQuery({
+    queryKey: ['date-range'],
+    queryFn: fetchDateRange,
+    staleTime: 1000 * 60 * 60 * 6, // 6 horas em cache
+  });
+
+  // Auto-sincroniza startYear e endYear quando os dados de emparelhamento chegarem
+  useEffect(() => {
+    if (dateRangeData) {
+      setStartYear(dateRangeData.start_year);
+      setEndYear(dateRangeData.end_year);
+    }
+  }, [dateRangeData]);
 
   // 4. Fetch Companies
   const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
@@ -317,7 +335,7 @@ export const App: React.FC = () => {
                   />
                 </div>
 
-                <div className="md:col-span-5 relative z-40">
+                <div className="md:col-span-4 relative z-40">
                   <EnsembleSelector
                     ensembles={ensembles}
                     selectedIdOns={selectedIdOns}
@@ -327,12 +345,36 @@ export const App: React.FC = () => {
                   />
                 </div>
 
-                <div className="md:col-span-2 flex flex-col justify-end">
-                  <label className="block text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                    <span>Período (Anos)</span>
-                  </label>
-                  <div className={`flex items-center gap-1.5 border rounded-xl p-2 ${
+                <div className="md:col-span-3 flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                      <span>Período (30 Anos)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (dateRangeData) {
+                          setStartYear(dateRangeData.start_year);
+                          setEndYear(dateRangeData.end_year);
+                        } else {
+                          setStartYear(1996);
+                          setEndYear(2026);
+                        }
+                      }}
+                      title="Restaurar período dinâmico emparelhado (30 anos)"
+                      className={`p-1 rounded-md border text-[11px] flex items-center gap-1 transition-all ${
+                        isLight
+                          ? 'border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
+                          : 'border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                      }`}
+                    >
+                      <RotateCcw className="w-3 h-3" />
+                      <span className="hidden sm:inline">Padrão</span>
+                    </button>
+                  </div>
+
+                  <div className={`flex items-center justify-between gap-1.5 border rounded-xl p-2 ${
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
                   }`}>
                     <input
@@ -340,23 +382,35 @@ export const App: React.FC = () => {
                       min={1980}
                       max={2026}
                       value={startYear}
-                      onChange={(e) => setStartYear(parseInt(e.target.value) || 1994)}
-                      className={`w-16 border rounded px-2 py-1 text-center font-mono text-xs ${
+                      onChange={(e) => setStartYear(parseInt(e.target.value) || 1996)}
+                      className={`w-20 border rounded-lg px-2 py-1 text-center font-mono text-xs font-semibold ${
                         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
                       }`}
                     />
-                    <span className="text-zinc-400 font-bold">-</span>
+                    <span className="text-zinc-400 font-bold text-xs">até</span>
                     <input
                       type="number"
                       min={1980}
                       max={2026}
                       value={endYear}
-                      onChange={(e) => setEndYear(parseInt(e.target.value) || 2024)}
-                      className={`w-16 border rounded px-2 py-1 text-center font-mono text-xs ${
+                      onChange={(e) => setEndYear(parseInt(e.target.value) || 2026)}
+                      className={`w-20 border rounded-lg px-2 py-1 text-center font-mono text-xs font-semibold ${
                         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
                       }`}
                     />
                   </div>
+
+                  {dateRangeData && (
+                    <div
+                      className="mt-1.5 flex items-center gap-1.5 text-[10px] text-cyan-600 dark:text-cyan-400 font-medium truncate"
+                      title={dateRangeData.explanation}
+                    >
+                      <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
+                      <span className="truncate">
+                        Emparelhado: Ref {dateRangeData.limiting_model} ({dateRangeData.end_year})
+                      </span>
+                    </div>
+                  )}
                 </div>
               </section>
 

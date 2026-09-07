@@ -33,6 +33,18 @@ class NodesResponse(BaseModel):
     merra2_nodes: list[NodeModel]
 
 
+class DateRangeResponse(BaseModel):
+    era5_latest_date: str
+    merra2_latest_date: str
+    common_end_date: str
+    common_start_date: str
+    start_year: int
+    end_year: int
+    total_years: int
+    limiting_model: str
+    explanation: str
+
+
 class DownloadRequest(BaseModel):
     node_id: str = Field(..., description="ID do nó ou 'SE_INTERPOLATED'")
     model: Literal["ERA5", "MERRA-2"]

@@ -1,8 +1,20 @@
-﻿# Changelog - Wind Resource Manager
+# Changelog - Wind Resource Manager
 
 Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
+
+---
+
+## [1.2.0] - 2026-09-07
+
+### ✨ Adicionado & Melhorado
+- **Emparelhamento Dinâmico de 30 Anos Baseado no Modelo Mais Defasado**:
+  - Implementado o módulo [`date_range_checker.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/date_range_checker.py) que consulta em tempo real a data de atualização mais recente dos acervos ERA5 (ECMWF via Open-Meteo) e MERRA-2 (NASA POWER).
+  - Regra de Negócio de Emparelhamento: identifica dinamicamente qual dos dois modelos possui o dado mais defasado/desatualizado (`min(data_era5, data_merra2)`) e adota essa data como a âncora final comum, retroagindo exatamente 30 anos dali para trás.
+  - Exemplo prático detectado: ERA5 atualizado até setembro/2026 e MERRA-2 atualizado até 30/08/2026. O sistema trava a referência no MERRA-2 e define a janela emparelhada de 30 anos (1996 a 2026).
+  - Adicionado endpoint `GET /api/reanalysis/date-range` com cache em memória de 6 horas para alta performance.
+  - No frontend, o seletor *"Período (30 Anos)"* inicializa automaticamente com os anos calculados dinamicamente pela API, exibe badge com o modelo balizador (`Ref MERRA-2`) e oferece botão de restauração rápida (`Padrão`).
 
 ---
 

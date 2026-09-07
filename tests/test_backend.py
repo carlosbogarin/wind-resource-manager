@@ -152,3 +152,24 @@ def test_catalog_and_api():
     data = r_nodes.json()
     assert len(data["era5_nodes"]) == 4
     assert len(data["merra2_nodes"]) == 4
+
+
+def test_dynamic_date_range():
+    from src.etl.date_range_checker import get_synchronized_30y_date_range
+
+    date_range = get_synchronized_30y_date_range()
+    assert "start_year" in date_range
+    assert "end_year" in date_range
+    assert date_range["end_year"] - date_range["start_year"] == 30
+    assert date_range["limiting_model"] in ["ERA5", "MERRA-2"]
+
+    client = TestClient(app)
+    r = client.get("/api/reanalysis/date-range")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["total_years"] == 30
+    assert data["start_year"] == date_range["start_year"]
+    assert data["end_year"] == date_range["end_year"]
+    assert "limiting_model" in data
+    assert "explanation" in data
+
