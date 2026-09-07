@@ -1,14 +1,14 @@
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Wind,
-  Layers,
   FileSpreadsheet,
   BookOpen,
   ExternalLink,
   X,
   Compass,
   MapPin,
-  Activity,
-  Zap,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'dossier' | 'methodology';
@@ -32,6 +32,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   theme = 'dark',
 }) => {
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const collapseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-retração temporal inicial (se retrai após 6 segundos de inatividade)
+  useEffect(() => {
+    collapseTimerRef.current = setTimeout(() => {
+      setIsCollapsed(true);
+    }, 6000);
+
+    return () => {
+      if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+    };
+  }, []);
+
+  // Ao passar o mouse, cancela o timer e se estende imediatamente
+  const handleMouseEnter = () => {
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current);
+      collapseTimerRef.current = null;
+    }
+    setIsCollapsed(false);
+  };
+
+  // Ao retirar o mouse, agenda retração automática após 4 segundos
+  const handleMouseLeave = () => {
+    if (collapseTimerRef.current) {
+      clearTimeout(collapseTimerRef.current);
+    }
+    collapseTimerRef.current = setTimeout(() => {
+      setIsCollapsed(true);
+    }, 4000);
+  };
+
+  // Ao clicar na barra lateral retraída, expande imediatamente
+  const handleSidebarClick = () => {
+    if (isCollapsed) {
+      if (collapseTimerRef.current) {
+        clearTimeout(collapseTimerRef.current);
+        collapseTimerRef.current = null;
+      }
+      setIsCollapsed(false);
+    }
+  };
+
   const handleSelect = (module: ActiveModule) => {
     onSelectModule(module);
     if (onClose) onClose();
@@ -41,71 +85,111 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] ${
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleSidebarClick}
+      className={`fixed inset-y-0 left-0 z-50 ${
+        isCollapsed ? 'lg:w-20' : 'lg:w-64'
+      } w-72 max-w-[85vw] ${
         isLight ? 'bg-white border-slate-200' : 'bg-zinc-950 border-zinc-800'
-      } border-r flex flex-col justify-between p-4 transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:w-64 lg:translate-x-0 lg:z-30 shrink-0 ${
+      } border-r flex flex-col justify-between ${
+        isCollapsed ? 'p-3' : 'p-4'
+      } transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:translate-x-0 lg:z-30 shrink-0 ${
         isOpen ? 'translate-x-0 shadow-2xl shadow-black/80' : '-translate-x-full'
       }`}
     >
       {/* Top: Logo & Title */}
       <div className="space-y-6">
-        <div className="flex items-center justify-between px-1 py-1">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0 text-white font-bold">
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-1 py-1`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} w-full min-w-0`}>
+            {/* Logo Icon */}
+            <div
+              className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0 text-white font-bold cursor-pointer transition-transform hover:scale-105"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsCollapsed(!isCollapsed);
+              }}
+              title={isCollapsed ? 'Clique para expandir' : 'Wind Resource Manager'}
+            >
               <Wind className="w-6 h-6" />
             </div>
-            <div className="flex flex-col">
-              <div className="flex items-baseline gap-1.5">
-                <h1 className={`text-base font-bold tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                  Wind Resource
-                </h1>
-                <span className={`text-[10px] font-mono font-medium px-1 py-0.5 rounded leading-none ${
-                  isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
-                }`}>
-                  v1.6.0
-                </span>
+
+            {/* Title & Author (Hidden when collapsed) */}
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-1.5">
+                  <h1 className={`text-sm font-bold tracking-tight leading-snug ${isLight ? 'text-slate-900' : 'text-white'} truncate`}>
+                    Wind Resource Manager
+                  </h1>
+                  <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded shrink-0 leading-none ${
+                    isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
+                  }`}>
+                    v1.6.0
+                  </span>
+                </div>
+                <a
+                  href="https://www.linkedin.com/in/carlosbogarin/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors mt-0.5 group ${
+                    isLight ? 'text-slate-500 hover:text-cyan-700' : 'text-zinc-400 hover:text-cyan-400'
+                  }`}
+                  title="Acessar LinkedIn de Carlos Bogarin"
+                >
+                  <span className="truncate">By: Carlos Bogarin</span>
+                  <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all shrink-0" />
+                </a>
               </div>
-              <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 leading-tight">
-                Manager Analytics
-              </span>
-              <a
-                href="https://www.linkedin.com/in/carlosbogarin/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`inline-flex items-center gap-1 text-[11px] font-medium transition-colors mt-0.5 group ${
-                  isLight ? 'text-slate-500 hover:text-cyan-700' : 'text-zinc-400 hover:text-cyan-400'
-                }`}
-                title="Acessar LinkedIn de Carlos Bogarin"
-              >
-                <span>By: Carlos Bogarin</span>
-                <ExternalLink className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all" />
-              </a>
-            </div>
+            )}
           </div>
 
-          {/* Close button for Mobile Drawer */}
-          <button
-            onClick={onClose}
-            className={`lg:hidden p-1.5 rounded-lg transition-colors ${
-              isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
-            }`}
-            title="Fechar menu lateral"
-            aria-label="Fechar menu"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {/* Toggle Button / Close button for Mobile Drawer */}
+          {!isCollapsed && (
+            <div className="flex items-center">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsCollapsed(true);
+                }}
+                className={`hidden lg:flex p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors ml-1`}
+                title="Recolher barra lateral"
+                aria-label="Recolher barra lateral"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={onClose}
+                className={`lg:hidden p-1.5 rounded-lg transition-colors ml-2 ${
+                  isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100' : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                }`}
+                title="Fechar menu lateral"
+                aria-label="Fechar menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Navigation Menu */}
         <nav className="space-y-1.5">
-          <div className={`px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
-            Módulos da Plataforma
-          </div>
+          {!isCollapsed && (
+            <div className={`px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
+              Módulos da Plataforma
+            </div>
+          )}
 
           {/* Module 1: Reanálises - ONS */}
           <button
+            type="button"
             onClick={() => handleSelect('reanalysis')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+            title="Reanálises - ONS (Conjuntos Eólicos ONS)"
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'reanalysis'
                 ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-600/30'
                 : isLight
@@ -113,19 +197,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Compass className="w-4 h-4 shrink-0" />
-            <div className="flex flex-col">
-              <span>Reanálises - ONS</span>
-              <span className={`text-[10px] font-normal ${activeModule === 'reanalysis' ? 'text-cyan-100' : 'text-zinc-500'}`}>
-                Conjuntos Eólicos ONS
-              </span>
-            </div>
+            <Compass className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate">Reanálises - ONS</span>
+                <span className={`text-[10px] font-normal ${activeModule === 'reanalysis' ? 'text-cyan-100' : 'text-zinc-500'} truncate`}>
+                  Conjuntos Eólicos ONS
+                </span>
+              </div>
+            )}
           </button>
 
           {/* Module 2: Reanálises - Manual */}
           <button
+            type="button"
             onClick={() => handleSelect('reanalysis_manual')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+            title="Reanálises - Manual (Coordenadas & Mapa)"
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'reanalysis_manual'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/30'
                 : isLight
@@ -133,19 +223,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <MapPin className="w-4 h-4 shrink-0" />
-            <div className="flex flex-col">
-              <span>Reanálises - Manual</span>
-              <span className={`text-[10px] font-normal ${activeModule === 'reanalysis_manual' ? 'text-emerald-100' : 'text-zinc-500'}`}>
-                Coordenadas & Mapa
-              </span>
-            </div>
+            <MapPin className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate">Reanálises - Manual</span>
+                <span className={`text-[10px] font-normal ${activeModule === 'reanalysis_manual' ? 'text-emerald-100' : 'text-zinc-500'} truncate`}>
+                  Coordenadas & Mapa
+                </span>
+              </div>
+            )}
           </button>
 
           {/* Module 3: Dossiê & Exportação */}
           <button
+            type="button"
             onClick={() => handleSelect('dossier')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+            title="Dossiê & Exportação (CSV, Parquet & Sumários)"
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'dossier'
                 ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-600/30'
                 : isLight
@@ -153,19 +249,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <FileSpreadsheet className="w-4 h-4 shrink-0" />
-            <div className="flex flex-col">
-              <span>Dossiê & Exportação</span>
-              <span className={`text-[10px] font-normal ${activeModule === 'dossier' ? 'text-purple-100' : 'text-zinc-500'}`}>
-                CSV, Parquet & Sumários
-              </span>
-            </div>
+            <FileSpreadsheet className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate">Dossiê & Exportação</span>
+                <span className={`text-[10px] font-normal ${activeModule === 'dossier' ? 'text-purple-100' : 'text-zinc-500'} truncate`}>
+                  CSV, Parquet & Sumários
+                </span>
+              </div>
+            )}
           </button>
 
           {/* Module 4: Metodologia */}
           <button
+            type="button"
             onClick={() => handleSelect('methodology')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+            title="Metodologia (Fórmulas, IDW & Malhas)"
+            className={`w-full flex items-center ${
+              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'methodology'
                 ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-600/30'
                 : isLight
@@ -173,39 +275,57 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <BookOpen className="w-4 h-4 shrink-0" />
-            <div className="flex flex-col">
-              <span>Metodologia</span>
-              <span className={`text-[10px] font-normal ${activeModule === 'methodology' ? 'text-amber-100' : 'text-zinc-500'}`}>
-                Fórmulas, IDW & Malhas
-              </span>
-            </div>
+            <BookOpen className="w-5 h-5 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate">Metodologia</span>
+                <span className={`text-[10px] font-normal ${activeModule === 'methodology' ? 'text-amber-100' : 'text-zinc-500'} truncate`}>
+                  Fórmulas, IDW & Malhas
+                </span>
+              </div>
+            )}
           </button>
         </nav>
       </div>
 
       {/* Bottom Summary Badge */}
       <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800/80'} space-y-2`}>
-        <div className={`p-3 rounded-xl border ${
-          isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
-        } text-xs space-y-1.5`}>
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] text-zinc-500 font-medium">Bases Carregadas</span>
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+        {isCollapsed ? (
+          <div
+            className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
+              isLight ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+            }`}
+            title={`Bases Carregadas: ${totalEnsembles || 155} conjuntos, ${totalCompanies || 31} empresas`}
+          >
+            <span className="flex h-2 w-2 rounded-full bg-emerald-500 mb-1 animate-pulse"></span>
+            <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
+              {totalEnsembles || 155}
+            </span>
           </div>
-          <div className="flex justify-between font-mono text-[11px]">
-            <span>Conjuntos:</span>
-            <strong className="text-cyan-600 dark:text-cyan-400">{totalEnsembles || 155}</strong>
-          </div>
-          <div className="flex justify-between font-mono text-[11px]">
-            <span>Empresas:</span>
-            <strong className="text-emerald-600 dark:text-emerald-400">{totalCompanies || 31}</strong>
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className={`p-3 rounded-xl border ${
+              isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
+            } text-xs space-y-1.5`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] text-zinc-500 font-medium">Bases Carregadas</span>
+                <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+              </div>
+              <div className="flex justify-between font-mono text-[11px]">
+                <span>Conjuntos:</span>
+                <strong className="text-cyan-600 dark:text-cyan-400">{totalEnsembles || 155}</strong>
+              </div>
+              <div className="flex justify-between font-mono text-[11px]">
+                <span>Empresas:</span>
+                <strong className="text-emerald-600 dark:text-emerald-400">{totalCompanies || 31}</strong>
+              </div>
+            </div>
 
-        <p className="text-[10px] text-zinc-500 text-center">
-          ECMWF ERA5 & NASA MERRA-2
-        </p>
+            <p className="text-[10px] text-zinc-500 text-center">
+              ECMWF ERA5 & NASA MERRA-2
+            </p>
+          </>
+        )}
       </div>
     </aside>
   );
