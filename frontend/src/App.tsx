@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   fetchCompanies,
@@ -9,7 +9,7 @@ import {
   downloadNodeData,
   fetchDateRange,
 } from './services/api';
-import { ReanalysisNode, Ensemble } from './types';
+import { ReanalysisNode, Ensemble, CompanySummary } from './types';
 import { Sidebar, ActiveModule } from './components/Sidebar';
 import { Header } from './components/Header';
 import { CompanySelector } from './components/CompanySelector';
@@ -101,10 +101,16 @@ export const App: React.FC = () => {
   }, [dateRangeData]);
 
   // 4. Fetch Companies
-  const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
+  const { data: rawCompanies = [], isLoading: isLoadingCompanies } = useQuery<CompanySummary[]>({
     queryKey: ['companies'],
     queryFn: fetchCompanies,
   });
+
+  const companies = useMemo<CompanySummary[]>(() => {
+    return [...rawCompanies].sort((a, b) =>
+      a.company_name.localeCompare(b.company_name, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [rawCompanies]);
 
   // Auto-select first company
   useEffect(() => {
@@ -114,11 +120,17 @@ export const App: React.FC = () => {
   }, [companies, selectedCompany]);
 
   // 5. Fetch Ensembles of Selected Company
-  const { data: ensembles = [], isLoading: isLoadingEnsembles } = useQuery({
+  const { data: rawEnsembles = [], isLoading: isLoadingEnsembles } = useQuery<Ensemble[]>({
     queryKey: ['ensembles', selectedCompany],
     queryFn: () => (selectedCompany ? fetchEnsembles(selectedCompany) : Promise.resolve([])),
     enabled: !!selectedCompany,
   });
+
+  const ensembles = useMemo<Ensemble[]>(() => {
+    return [...rawEnsembles].sort((a, b) =>
+      a.ensemble_name.localeCompare(b.ensemble_name, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [rawEnsembles]);
 
   // Auto-select first ensemble when company changes
   useEffect(() => {

@@ -185,7 +185,7 @@ def list_companies() -> list[dict[str, Any]]:
             STRING_AGG(DISTINCT id_estado, ', ') AS estados
         FROM vw_wind_catalog
         GROUP BY nom_agenteoperador
-        ORDER BY total_mw DESC;
+        ORDER BY UPPER(TRIM(nom_agenteoperador)) ASC;
     """).fetchall()
     con.close()
     return [

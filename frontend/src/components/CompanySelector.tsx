@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Building2, Search, Zap, Check, ChevronDown } from 'lucide-react';
 import { CompanySummary } from '../types';
 
@@ -18,17 +18,23 @@ export const CompanySelector: React.FC<CompanySelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
+  const sortedCompanies = useMemo(() => {
+    return [...companies].sort((a, b) =>
+      a.company_name.localeCompare(b.company_name, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [companies]);
+
   const filteredCompanies = useMemo(() => {
-    if (!searchTerm) return companies;
+    if (!searchTerm) return sortedCompanies;
     const term = searchTerm.toLowerCase();
-    return companies.filter(
+    return sortedCompanies.filter(
       (c) =>
         c.company_name.toLowerCase().includes(term) ||
         c.states.some((s) => s.toLowerCase().includes(term))
     );
-  }, [companies, searchTerm]);
+  }, [sortedCompanies, searchTerm]);
 
-  const active = companies.find((c) => c.company_name === selectedCompany);
+  const active = sortedCompanies.find((c) => c.company_name === selectedCompany);
 
   return (
     <div className="relative z-50">

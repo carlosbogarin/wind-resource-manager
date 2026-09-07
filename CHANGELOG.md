@@ -4,6 +4,18 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.2] - 2026-09-07
+
+### ✨ Adicionado & Melhorado
+- **Ordenação Alfabética Estrita no Filtro de Empresas (A a Z)**:
+  - **Hierarquia com Prioridade na Empresa**: No seletor de empresas, a ordenação foi ajustada para priorizar a razão social da empresa (`nom_agenteoperador`) em ordem alfabética (A a Z), abandonando o critério anterior que priorizava potência instalada em MW ou quantidade de conjuntos.
+  - **Backend ONS DuckDB**: Em [`src/etl/ons_catalog.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/ons_catalog.py), o método `list_companies()` foi alterado para ordenar por `UPPER(TRIM(nom_agenteoperador)) ASC`, garantindo que `/api/catalog/companies` retorne a relação completa em ordem alfabética exata.
+  - **Frontend Resiliente com `localeCompare`**: Em [`CompanySelector.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/CompanySelector.tsx) e [`App.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/App.tsx), adicionada ordenação com `localeCompare('pt-BR', { sensitivity: 'base' })` para tratamento impecável de acentos, caracteres especiais (Ç, Ã, etc.) e maiúsculas/minúsculas.
+  - **Ordenação dos Conjuntos da Empresa Selecionada**: Em [`EnsembleSelector.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/EnsembleSelector.tsx), os conjuntos pertencentes à empresa selecionada são ordenados alfabeticamente por nome (`nom_usina_conjunto`).
+  - **Testes Automatizados**: Adicionada asserção no teste `test_catalog_and_api` em [`tests/test_backend.py`](file:///c:/Coding/Wind%20Resource%20Manager/tests/test_backend.py) validando que as empresas são retornadas sempre ordenadas alfabeticamente.
+
+---
+
 ## [1.3.1] - 2026-09-07
 
 ### 🐛 Correções & Resiliência

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Wind, Search, MapPin, Zap, Check, ChevronDown } from 'lucide-react';
 import { Ensemble } from '../types';
 
@@ -20,18 +20,24 @@ export const EnsembleSelector: React.FC<EnsembleSelectorProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
 
+  const sortedEnsembles = useMemo(() => {
+    return [...ensembles].sort((a, b) =>
+      a.ensemble_name.localeCompare(b.ensemble_name, 'pt-BR', { sensitivity: 'base' })
+    );
+  }, [ensembles]);
+
   const filteredEnsembles = useMemo(() => {
-    if (!searchTerm) return ensembles;
+    if (!searchTerm) return sortedEnsembles;
     const term = searchTerm.toLowerCase();
-    return ensembles.filter(
+    return sortedEnsembles.filter(
       (e) =>
         e.ensemble_name.toLowerCase().includes(term) ||
         e.id_ons.toLowerCase().includes(term) ||
         e.state.toLowerCase().includes(term)
     );
-  }, [ensembles, searchTerm]);
+  }, [sortedEnsembles, searchTerm]);
 
-  const active = ensembles.find((e) => e.id_ons === selectedIdOns);
+  const active = sortedEnsembles.find((e) => e.id_ons === selectedIdOns);
 
   return (
     <div className="relative z-50">

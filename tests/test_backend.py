@@ -129,6 +129,9 @@ def test_catalog_and_api():
 
     companies = list_companies()
     assert len(companies) > 0
+    # Verifica ordenacao alfabetica estrita das empresas
+    comp_names = [c["company_name"].upper() for c in companies]
+    assert comp_names == sorted(comp_names)
     first_company = companies[0]["company_name"]
 
     ensembles = list_ensembles_by_company(first_company)
@@ -144,7 +147,8 @@ def test_catalog_and_api():
 
     r_comp = client.get("/api/catalog/companies")
     assert r_comp.status_code == 200
-    assert len(r_comp.json()) > 0
+    api_comps = [c["company_name"].upper() for c in r_comp.json()]
+    assert api_comps == sorted(api_comps)
 
     test_id_ons = ensembles[0]["id_ons"]
     r_nodes = client.get(f"/api/reanalysis/nodes?id_ons={test_id_ons}")
