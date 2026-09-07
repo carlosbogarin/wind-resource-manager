@@ -100,8 +100,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Top: Logo & Title */}
       <div className="space-y-5">
-        <div className={`h-11 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-0.5`}>
-          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} w-full min-w-0`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center h-11' : 'justify-between'} px-0.5`}>
+          <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'} w-full min-w-0`}>
             {/* Logo Icon */}
             <div
               className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-cyan-500/20 shrink-0 text-white font-bold cursor-pointer transition-transform hover:scale-105"
@@ -114,12 +114,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <Wind className="w-6 h-6" />
             </div>
 
-            {/* Title & Author (Hidden when collapsed) */}
+            {/* Title & Author (Hidden when collapsed) - Padrão Smart Curtailment */}
             {!isCollapsed && (
               <div className="flex flex-col min-w-0 flex-1">
+                {/* Linha 1: Wind + Badge de Versão */}
                 <div className="flex items-center justify-between gap-1.5">
-                  <h1 className={`text-sm font-bold tracking-tight leading-snug ${isLight ? 'text-slate-900' : 'text-white'} truncate`}>
-                    Wind Resource Manager
+                  <h1 className={`text-sm font-bold tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                    Wind
                   </h1>
                   <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded shrink-0 leading-none ${
                     isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
@@ -127,6 +128,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     v1.6.0
                   </span>
                 </div>
+
+                {/* Linha 2: Resource Manager */}
+                <div className={`text-sm font-bold tracking-tight leading-tight ${isLight ? 'text-slate-900' : 'text-white'} whitespace-nowrap`}>
+                  Resource Manager
+                </div>
+
+                {/* Linha 3: Autor */}
                 <a
                   href="https://www.linkedin.com/in/carlosbogarin/"
                   target="_blank"
