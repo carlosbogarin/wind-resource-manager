@@ -90,14 +90,67 @@ export interface TimeSeriesItem {
   speed_max?: number;
   temp?: number;
   direction_100m?: number;
+  speed_measured?: number | null;
+  generation_mw?: number | null;
 }
 
 export interface TimeSeriesResponse {
   node_id: string;
   model: string;
   aggregation: string;
+  has_measured_data?: boolean;
   total_points: number;
   series: TimeSeriesItem[];
+}
+
+export interface CorrelationPoint {
+  x: number;
+  y: number;
+}
+
+export interface ScatterPoint {
+  x: number;
+  y: number;
+  time: string;
+}
+
+export interface CorrelationResponse {
+  node_id: string;
+  model: string;
+  ensemble_name: string;
+  n_samples: number;
+  aggregation: 'hourly' | 'daily';
+  pearson_r: number;
+  r_squared: number;
+  slope: number;
+  intercept: number;
+  equation: string;
+  bias: number;
+  rmse: number;
+  mae: number;
+  r_quality: string;
+  r_color: string;
+  reanalysis_mean: number;
+  reanalysis_std: number;
+  measured_mean: number;
+  measured_std: number;
+  fit_line: CorrelationPoint[];
+  ideal_line: CorrelationPoint[];
+  scatter_points: ScatterPoint[];
+}
+
+export interface OnsMeasuredItem {
+  time: string;
+  speed_measured: number;
+  generation_mw: number;
+}
+
+export interface OnsMeasuredResponse {
+  ensemble_name: string;
+  id_ons?: string;
+  total_points: number;
+  aggregation: string;
+  series: OnsMeasuredItem[];
 }
 
 export interface WeibullHistogramItem {

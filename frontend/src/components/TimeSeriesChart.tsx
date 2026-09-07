@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { TimeSeriesItem } from '../types';
 
@@ -24,10 +24,18 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     const speeds100 = data.map((d) => d.speed_100m);
     const speeds10 = data.map((d) => d.speed_10m);
     const speedsMax = data.map((d) => d.speed_max ?? null);
+    const speedsMeasured = data.map((d) => d.speed_measured ?? null);
 
+    const hasMeasured = data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined);
     const isCyan = model === 'ERA5';
     const primaryColor = isCyan ? '#06b6d4' : '#f59e0b';
-    const secondaryColor = '#10b981';
+    const measuredColor = '#10b981'; // Emerald para anemômetros reais
+    const secondaryColor = '#818cf8'; // Índigo para vento 10m
+
+    const legendItems = ['Vento a 100m (Hub)'];
+    if (hasMeasured) legendItems.push('Vento Medido Usina (ONS)');
+    legendItems.push('Vento a 10m (Superfície)');
+    if (aggregation === 'daily') legendItems.push('Rajada Máxima Diária');
 
     return {
       backgroundColor: 'transparent',
@@ -42,7 +50,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         },
       },
       legend: {
-        data: ['Vento a 100m (Hub)', 'Vento a 10m (Superfície)', 'Rajada Máxima Diária'],
+        data: legendItems,
         textStyle: { color: '#a1a1aa', fontSize: 11 },
         top: 0,
       },
@@ -118,6 +126,19 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             },
           },
         },
+        ...(hasMeasured
+          ? [
+              {
+                name: 'Vento Medido Usina (ONS)',
+                type: 'line',
+                data: speedsMeasured,
+                smooth: true,
+                showSymbol: false,
+                lineStyle: { width: 2, color: measuredColor },
+                itemStyle: { color: measuredColor },
+              },
+            ]
+          : []),
         {
           name: 'Vento a 10m (Superfície)',
           type: 'line',
@@ -144,18 +165,29 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     };
   }, [data, nodeTitle, model, aggregation]);
 
+  const hasMeasuredData = useMemo(
+    () => data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined),
+    [data]
+  );
+
   return (
     <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
         <div>
-          <h4 className="text-base font-bold text-white flex items-center gap-2">
+          <h4 className="text-base font-bold text-white flex flex-wrap items-center gap-2">
             <span>Série Histórica Reanálise: {nodeTitle}</span>
             <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
               {model}
             </span>
+            {hasMeasuredData && (
+              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium flex items-center gap-1.5 shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                Vento Anemômetro ONS Concomitante
+              </span>
+            )}
           </h4>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Velocidade média horária/diária do vento a 100m (altura do rotor) e 10m com zoom interativo
+            Velocidade média horária/diária do vento a 100m (altura do rotor), 10m e medição real dos aerogeradores (ONS)
           </p>
         </div>
 

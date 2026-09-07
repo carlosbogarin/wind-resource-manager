@@ -214,5 +214,33 @@ def test_uncached_node_endpoints():
     data_an = r_an.json()
     assert data_an["total_hours"] == 0
 
+    r_corr = client.get("/api/reanalysis/correlation?node_id=ERA5-TEST-UNCACHED&model=ERA5&latitude=-14.0&longitude=-42.0&ensemble_name=TESTE")
+    assert r_corr.status_code == 200
+    assert r_corr.json() is None
+
+
+def test_linear_correlation_computation():
+    import polars as pl
+    from src.analytics.correlation import compute_reanalysis_measured_correlation
+    from datetime import datetime, timedelta
+
+    dates = [datetime(2024, 1, 1) + timedelta(hours=i) for i in range(100)]
+    r_speeds = [5.0 + 0.1 * i for i in range(100)]
+    m_speeds = [1.2 * s + 0.5 for s in r_speeds]
+
+    r_df = pl.DataFrame({"timestamp": dates, "wind_speed_100m": r_speeds})
+    m_df = pl.DataFrame({"timestamp": dates, "wind_speed_measured": m_speeds})
+
+    res = compute_reanalysis_measured_correlation(r_df, m_df, aggregation="hourly")
+    assert res is not None
+    assert res["n_samples"] == 100
+    assert abs(res["pearson_r"] - 1.0) < 1e-4
+    assert abs(res["r_squared"] - 1.0) < 1e-4
+    assert abs(res["slope"] - 1.2) < 1e-2
+    assert abs(res["intercept"] - 0.5) < 1e-2
+    assert len(res["fit_line"]) == 2
+    assert len(res["ideal_line"]) == 2
+
+
 
 

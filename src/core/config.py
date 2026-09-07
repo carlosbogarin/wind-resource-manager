@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str = "Wind Resource Manager"
-    VERSION: str = "1.3.4"
+    VERSION: str = "1.4.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     PORT: int = int(os.getenv("PORT", "8000"))
     HOST: str = "0.0.0.0"
@@ -45,6 +45,17 @@ class Settings(BaseSettings):
     ONS_CAPACIDADE_GERACAO_URL: str = (
         "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/capacidade-geracao/CAPACIDADE_GERACAO.parquet"
     )
+    ONS_CKAN_EOL_DETAIL_URL: str = (
+        "https://dados.ons.org.br/api/3/action/package_show?id=restricao_coff_eolica_detail"
+    )
+    ONS_EOL_DETAIL_LOCAL_DIR: Path = Path("C:/Coding/Smart Curtailment/Inputs/ONS_eolica_detail")
+    ONS_EOL_DETAIL_DATA_DIR: Path = DATA_DIR / "ons_eolica_detail"
+
+    @property
+    def ONS_EOL_DETAIL_DIR(self) -> Path:
+        if self.ONS_EOL_DETAIL_LOCAL_DIR.exists() and any(self.ONS_EOL_DETAIL_LOCAL_DIR.glob("*.parquet")):
+            return self.ONS_EOL_DETAIL_LOCAL_DIR
+        return self.ONS_EOL_DETAIL_DATA_DIR
 
     # Reanálise
     OPEN_METEO_ARCHIVE_URL: str = "https://archive-api.open-meteo.com/v1/archive"

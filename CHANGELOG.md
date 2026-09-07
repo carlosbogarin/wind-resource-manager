@@ -4,6 +4,24 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.4.0] - 2026-09-07
+
+### ✨ Auto-Download da Reanálise Mais Próxima, Dados Medidos ONS & Correlação MCP
+- **Download Automático da Reanálise Mais Próxima**:
+  - Ao selecionar qualquer conjunto eólico na lista de empresas/conjuntos, o sistema calcula a distância física exata entre a SE Coletora e os 8 nós circundantes (4 de ERA5 e 4 de MERRA-2).
+  - O nó com menor distância física é selecionado por padrão e, se ainda não estiver em cache local, o download dos 30 anos de reanálise é iniciado automaticamente em segundo plano.
+- **Inteligência Smart Curtailment: Ingestão de Dados Medidos ONS (EOL Detailed)**:
+  - Integração com o dataset de restrição eólica detalhada do ONS (`restricao_coff_eolica_detail` / `val_ventoverificado`), abrangendo o histórico de medições reais de anemômetros nos aerogeradores (desde janeiro de 2023 até o mês presente).
+  - Engine de alta performance com DuckDB e Polars indexando o catálogo e gerando cache local por conjunto em `data/ons_eolica_detail/cache/` (consulta em <7ms).
+  - No gráfico de Série Temporal Completa ([`TimeSeriesChart`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/TimeSeriesChart.tsx)), a velocidade real medida pela usina é plotada lado a lado com a reanálise (linha verde esmeralda com indicador pulsante).
+- **Módulo e Aba Dedicada: Correlação Linear MCP (Measure-Correlate-Predict)**:
+  - Nova aba interativa **"Correlação MCP (Reanálise vs Usina)"** com componente dedicado [`LinearCorrelationChart`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/LinearCorrelationChart.tsx).
+  - Suporte à resolução concomitante **Horária** e **Diária** (esta última suaviza variações de micro-escala, elevando a correlação para patamares superiores a 90%).
+  - Exibição de cards com métricas estatísticas essenciais: Coeficiente de Correlação de Pearson ($R$), Coeficiente de Determinação ($R^2$), Equação do Modelo Linear ($V_{med} = a \cdot V_{rean} + b$), Bias médio ($V_{med} - V_{rean}$), Incerteza (RMSE e MAE) e contagem de amostras emparelhadas.
+  - Gráfico de dispersão bidimensional (Scatter Plot) interativo via ECharts com a reta de regressão ajustada e linha 1:1 de referência ideal ($y = x$).
+
+---
+
 ## [1.3.4] - 2026-09-07
 
 ### 🐛 Correções & Conectores de Reanálise (ERA5 & MERRA-2)

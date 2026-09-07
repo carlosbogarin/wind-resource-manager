@@ -8,6 +8,8 @@ import {
   DownloadResponse,
   TimeSeriesResponse,
   AnalyticsData,
+  CorrelationResponse,
+  OnsMeasuredResponse,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -71,6 +73,7 @@ export interface TimeSeriesParams {
   model: string;
   latitude: number;
   longitude: number;
+  ensemble_name?: string;
   start_year?: number;
   end_year?: number;
   start_month?: string;
@@ -80,6 +83,42 @@ export interface TimeSeriesParams {
 
 export const fetchTimeSeries = async (params: TimeSeriesParams): Promise<TimeSeriesResponse> => {
   const { data } = await api.get<TimeSeriesResponse>('/reanalysis/timeseries', {
+    params,
+  });
+  return data;
+};
+
+export interface CorrelationParams {
+  node_id: string;
+  model: string;
+  latitude: number;
+  longitude: number;
+  ensemble_name: string;
+  id_ons?: string;
+  start_year?: number;
+  end_year?: number;
+  start_month?: string;
+  end_month?: string;
+  aggregation?: 'hourly' | 'daily';
+}
+
+export const fetchCorrelation = async (params: CorrelationParams): Promise<CorrelationResponse | null> => {
+  const { data } = await api.get<CorrelationResponse | null>('/reanalysis/correlation', {
+    params,
+  });
+  return data;
+};
+
+export interface OnsMeasuredParams {
+  ensemble_name: string;
+  id_ons?: string;
+  start_month?: string;
+  end_month?: string;
+  aggregation?: 'hourly' | 'daily' | 'monthly';
+}
+
+export const fetchOnsMeasured = async (params: OnsMeasuredParams): Promise<OnsMeasuredResponse> => {
+  const { data } = await api.get<OnsMeasuredResponse>('/reanalysis/ons-measured', {
     params,
   });
   return data;

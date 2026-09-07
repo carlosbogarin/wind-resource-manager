@@ -1,4 +1,4 @@
-﻿# Python
+# Python
 __pycache__/
 *.py[cod]
 *.class
@@ -54,4 +54,6 @@ frontend/*.tsbuildinfo
 # Reanalysis and raw downloads (large files, preserve catalog)
 data/raw/
 data/reanalysis/
+data/ons_eolica_detail/
 !data/catalog/wind_catalog.parquet
+

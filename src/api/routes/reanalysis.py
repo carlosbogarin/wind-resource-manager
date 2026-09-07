@@ -5,6 +5,7 @@ import logging
 import polars as pl
 from fastapi import APIRouter, HTTPException, Query
 
+from src.analytics.correlation import compute_reanalysis_measured_correlation
 from src.analytics.profiles import compute_diurnal_profile, compute_monthly_seasonality, correlate_with_ons_fc
 from src.analytics.weibull import fit_weibull
 from src.analytics.wind_rose import calculate_wind_rose
@@ -23,6 +24,7 @@ from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y
 from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import fetch_and_cache_merra2, get_merra2_cache_path, load_merra2_series
 from src.etl.ons_catalog import get_ensemble_details
+from src.etl.ons_eol_detail import fetch_ensemble_measured_series, get_aggregated_measured_series
 
 logger = logging.getLogger("api.reanalysis")
 router = APIRouter(prefix="/reanalysis", tags=["Reanálise ERA5 & MERRA-2"])
@@ -162,13 +164,14 @@ def get_timeseries_data(
     model: str = Query(...),
     latitude: float = Query(...),
     longitude: float = Query(...),
+    ensemble_name: str | None = Query(default=None, description="Nome do conjunto eólico para agregar vento medido ONS"),
     start_year: int = Query(default=1994),
     end_year: int = Query(default=2024),
     start_month: str | None = Query(default=None, description="Formato AAAA-MM"),
     end_month: str | None = Query(default=None, description="Formato AAAA-MM"),
     aggregation: str = Query(default="daily", pattern="^(hourly|daily|monthly)$"),
 ):
-    """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts."""
+    """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts, incluindo vento medido dos parques se disponível."""
     try:
         if model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
@@ -188,10 +191,22 @@ def get_timeseries_data(
         df = filter_df_by_period(df, start_month, end_month)
 
         if aggregation == "hourly":
-            # Para visualização rápida se a janela for curta
-            # Se forem 30 anos, limitar ou agregar
             if len(df) > 100000:
                 aggregation = "daily"
+
+        # Carregar dados medidos concomitantes do conjunto se especificado
+        measured_map: dict[str, float] = {}
+        gen_map: dict[str, float] = {}
+        if ensemble_name:
+            try:
+                m_df = fetch_ensemble_measured_series(ensemble_name)
+                if m_df is not None and len(m_df) > 0:
+                    m_series = get_aggregated_measured_series(m_df, start_month, end_month, aggregation)
+                    for item in m_series:
+                        measured_map[item["time"]] = item["speed_measured"]
+                        gen_map[item["time"]] = item["generation_mw"]
+            except Exception as ex:
+                logger.warning(f"Não foi possível carregar vento medido ONS para '{ensemble_name}': {ex}")
 
         if aggregation == "daily":
             agg_df = (
@@ -207,16 +222,20 @@ def get_timeseries_data(
                 )
                 .sort("date")
             )
-            data = [
-                {
-                    "time": row["date"].strftime("%Y-%m-%d"),
-                    "speed_100m": row["wind_speed_100m"],
-                    "speed_10m": row["wind_speed_10m"],
-                    "speed_max": row["wind_speed_100m_max"],
-                    "temp": row["temperature"],
-                }
-                for row in agg_df.iter_rows(named=True)
-            ]
+            data = []
+            for row in agg_df.iter_rows(named=True):
+                time_str = row["date"].strftime("%Y-%m-%d")
+                data.append(
+                    {
+                        "time": time_str,
+                        "speed_100m": row["wind_speed_100m"],
+                        "speed_10m": row["wind_speed_10m"],
+                        "speed_max": row["wind_speed_100m_max"],
+                        "temp": row["temperature"],
+                        "speed_measured": measured_map.get(time_str),
+                        "generation_mw": gen_map.get(time_str),
+                    }
+                )
         elif aggregation == "monthly":
             agg_df = (
                 df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m").alias("mes_ano"))
@@ -231,40 +250,130 @@ def get_timeseries_data(
                 )
                 .sort("mes_ano")
             )
-            data = [
-                {
-                    "time": row["mes_ano"],
-                    "speed_100m": row["wind_speed_100m"],
-                    "speed_10m": row["wind_speed_10m"],
-                    "speed_max": row["wind_speed_100m_max"],
-                    "temp": row["temperature"],
-                }
-                for row in agg_df.iter_rows(named=True)
-            ]
+            data = []
+            for row in agg_df.iter_rows(named=True):
+                time_str = row["mes_ano"]
+                data.append(
+                    {
+                        "time": time_str,
+                        "speed_100m": row["wind_speed_100m"],
+                        "speed_10m": row["wind_speed_10m"],
+                        "speed_max": row["wind_speed_100m_max"],
+                        "temp": row["temperature"],
+                        "speed_measured": measured_map.get(time_str),
+                        "generation_mw": gen_map.get(time_str),
+                    }
+                )
         else:
             # Horário (amostrado se muito grande)
-            sample_df = df.slice(0, 8760)  # primeiro ano ou similar
-            data = [
-                {
-                    "time": row["timestamp"].strftime("%Y-%m-%d %H:%M"),
-                    "speed_100m": row["wind_speed_100m"],
-                    "speed_10m": row["wind_speed_10m"],
-                    "direction_100m": row["wind_direction_100m"],
-                    "temp": row["temperature_2m_c"],
-                }
-                for row in sample_df.iter_rows(named=True)
-            ]
+            sample_df = df.slice(0, 8760)
+            data = []
+            for row in sample_df.iter_rows(named=True):
+                time_str = row["timestamp"].strftime("%Y-%m-%d %H:%M")
+                data.append(
+                    {
+                        "time": time_str,
+                        "speed_100m": row["wind_speed_100m"],
+                        "speed_10m": row["wind_speed_10m"],
+                        "direction_100m": row["wind_direction_100m"],
+                        "temp": row["temperature_2m_c"],
+                        "speed_measured": measured_map.get(time_str),
+                        "generation_mw": gen_map.get(time_str),
+                    }
+                )
 
         return {
             "node_id": node_id,
             "model": model,
             "aggregation": aggregation,
+            "has_measured_data": len(measured_map) > 0,
             "total_points": len(data),
             "series": data,
         }
     except Exception as e:
-        logger.error(f"Erro ao recuperar série temporal: {e}")
+        logger.error(f"Erro ao carregar série temporal: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ons-measured")
+def get_ons_measured_series(
+    ensemble_name: str = Query(..., description="Nome do conjunto eólico ONS"),
+    id_ons: str | None = Query(default=None),
+    start_month: str | None = Query(default=None),
+    end_month: str | None = Query(default=None),
+    aggregation: str = Query(default="daily", pattern="^(hourly|daily|monthly)$"),
+):
+    """Retorna série temporal histórica de velocidade do vento medida pelos anemômetros dos parques eólicos (dataset ONS EOL Detailed)."""
+    try:
+        df = fetch_ensemble_measured_series(ensemble_name, id_ons=id_ons)
+        if df is None or len(df) == 0:
+            return {
+                "ensemble_name": ensemble_name,
+                "id_ons": id_ons,
+                "total_points": 0,
+                "aggregation": aggregation,
+                "series": [],
+            }
+        series = get_aggregated_measured_series(df, start_month, end_month, aggregation)
+        return {
+            "ensemble_name": ensemble_name,
+            "id_ons": id_ons,
+            "total_points": len(series),
+            "aggregation": aggregation,
+            "series": series,
+        }
+    except Exception as e:
+        logger.error(f"Erro ao consultar vento medido ONS para '{ensemble_name}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/correlation")
+def get_correlation_data(
+    node_id: str = Query(...),
+    model: str = Query(...),
+    latitude: float = Query(...),
+    longitude: float = Query(...),
+    ensemble_name: str = Query(...),
+    id_ons: str | None = Query(default=None),
+    start_year: int = Query(default=1996),
+    end_year: int = Query(default=2026),
+    start_month: str | None = Query(default=None),
+    end_month: str | None = Query(default=None),
+    aggregation: str = Query(default="hourly", pattern="^(hourly|daily)$"),
+):
+    """Calcula regressão linear concomitante (Measure-Correlate-Predict / MCP) entre reanálise e dados reais medidos das turbinas."""
+    try:
+        if model == "ERA5":
+            r_df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
+        else:
+            r_df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        if r_df is None or len(r_df) == 0:
+            return None
+
+        m_df = fetch_ensemble_measured_series(ensemble_name, id_ons=id_ons)
+        if m_df is None or len(m_df) == 0:
+            return None
+
+        if start_month or end_month:
+            r_df = filter_df_by_period(r_df, start_month, end_month)
+
+        corr_res = compute_reanalysis_measured_correlation(
+            reanalysis_df=r_df,
+            measured_df=m_df,
+            aggregation=aggregation,
+        )
+        if corr_res is None:
+            return None
+
+        corr_res["node_id"] = node_id
+        corr_res["model"] = model
+        corr_res["ensemble_name"] = ensemble_name
+        return corr_res
+    except Exception as e:
+        logger.error(f"Erro ao calcular correlação concomitante: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/analytics", response_model=AnalyticsResponse)

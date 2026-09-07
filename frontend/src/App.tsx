@@ -6,6 +6,7 @@ import {
   fetchNodes,
   fetchTimeSeries,
   fetchAnalytics,
+  fetchCorrelation,
   downloadNodeData,
   fetchDateRange,
 } from './services/api';
@@ -17,6 +18,7 @@ import { EnsembleSelector } from './components/EnsembleSelector';
 import { MapView } from './components/MapView';
 import { NodesGridTable } from './components/NodesGridTable';
 import { TimeSeriesChart } from './components/TimeSeriesChart';
+import { LinearCorrelationChart } from './components/LinearCorrelationChart';
 import { DiurnalProfileChart } from './components/DiurnalProfileChart';
 import { SeasonalityChart } from './components/SeasonalityChart';
 import { WindRoseChart } from './components/WindRoseChart';
@@ -37,6 +39,7 @@ import {
   Calendar,
   RotateCcw,
   Sparkles,
+  GitCompare,
 } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -74,8 +77,10 @@ export const App: React.FC = () => {
   const [startPeriod, setStartPeriod] = useState<string>('1996-08');
   const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
-  const [activeTab, setActiveTab] = useState<'timeseries' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
+  const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily'>('hourly');
+  const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+  const autoDownloadedEnsembleRef = React.useRef<string | null>(null);
 
   // Anos inteiros derivados para carregamento de arquivos e queries base
   const startYear = parseInt(startPeriod.split('-')[0]) || 1996;
@@ -150,26 +155,6 @@ export const App: React.FC = () => {
 
   const [downloadingNodeId, setDownloadingNodeId] = useState<string | null>(null);
 
-  // Default selected node to closest ERA5 node or keep current selection updated
-  useEffect(() => {
-    if (nodesData) {
-      const allNodes = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
-      if (selectedNode) {
-        const found = allNodes.find(
-          (n) => n.node_id === selectedNode.node_id && n.model === selectedNode.model
-        );
-        if (found) {
-          setSelectedNode(found);
-          return;
-        }
-      }
-      if (nodesData.era5_nodes.length > 0) {
-        const closestEra5 = [...nodesData.era5_nodes].sort((a, b) => a.distance_km - b.distance_km)[0];
-        setSelectedNode(closestEra5);
-      }
-    }
-  }, [nodesData]);
-
   // 7. Download Mutation
   const downloadMutation = useMutation({
     mutationFn: downloadNodeData,
@@ -180,6 +165,7 @@ export const App: React.FC = () => {
       });
       queryClient.invalidateQueries({ queryKey: ['timeseries'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['correlation'] });
       queryClient.invalidateQueries({ queryKey: ['nodes'] });
     },
     onError: (err: any) => {
@@ -218,6 +204,35 @@ export const App: React.FC = () => {
     );
   };
 
+  // Auto-seleciona e baixa automaticamente a reanálise mais próxima (entre os 8 nós) ao selecionar um conjunto
+  useEffect(() => {
+    if (nodesData && selectedIdOns) {
+      const allNodes = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
+      if (allNodes.length === 0) return;
+
+      // Ordenar por distância absoluta até a SE do conjunto eólico
+      const closestNode = [...allNodes].sort((a, b) => a.distance_km - b.distance_km)[0];
+
+      if (autoDownloadedEnsembleRef.current !== selectedIdOns) {
+        autoDownloadedEnsembleRef.current = selectedIdOns;
+        setSelectedNode(closestNode);
+
+        // Se ainda não estiver em cache, dispara download imediato por padrão
+        if (!closestNode.is_cached && !downloadMutation.isPending) {
+          handleDownloadNode(closestNode);
+        }
+      } else if (selectedNode) {
+        // Mantém atualizado o nó ativo
+        const found = allNodes.find(
+          (n) => n.node_id === selectedNode.node_id && n.model === selectedNode.model
+        );
+        if (found) {
+          setSelectedNode(found);
+        }
+      }
+    }
+  }, [nodesData, selectedIdOns]);
+
   const handleDownloadAllNodes = async () => {
     if (!nodesData) return;
     const all = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
@@ -244,6 +259,7 @@ export const App: React.FC = () => {
     }
     queryClient.invalidateQueries({ queryKey: ['timeseries'] });
     queryClient.invalidateQueries({ queryKey: ['analytics'] });
+    queryClient.invalidateQueries({ queryKey: ['correlation'] });
     queryClient.invalidateQueries({ queryKey: ['nodes'] });
     setNotification({
       type: 'success',
@@ -251,7 +267,10 @@ export const App: React.FC = () => {
     });
   };
 
-  // 8. Fetch Time Series
+  const activeEnsemble = ensembles.find((e) => e.id_ons === selectedIdOns);
+  const isLight = theme === 'light';
+
+  // 8. Fetch Time Series (com vento medido dos anemômetros da usina ONS EOL)
   const { data: timeseriesData, isLoading: isLoadingSeries } = useQuery({
     queryKey: [
       'timeseries',
@@ -259,6 +278,7 @@ export const App: React.FC = () => {
       selectedNode?.model,
       selectedNode?.latitude,
       selectedNode?.longitude,
+      activeEnsemble?.ensemble_name,
       startPeriod,
       endPeriod,
       aggregation,
@@ -270,6 +290,7 @@ export const App: React.FC = () => {
             model: selectedNode.model,
             latitude: selectedNode.latitude,
             longitude: selectedNode.longitude,
+            ensemble_name: activeEnsemble?.ensemble_name,
             start_year: startYear,
             end_year: endYear,
             start_month: startPeriod,
@@ -278,6 +299,39 @@ export const App: React.FC = () => {
           })
         : Promise.resolve(null),
     enabled: !!selectedNode,
+  });
+
+  // 8.1 Fetch MCP Linear Correlation (Reanálise vs Medição Real da Usina ONS)
+  const { data: correlationData, isLoading: isLoadingCorrelation } = useQuery({
+    queryKey: [
+      'correlation',
+      selectedNode?.node_id,
+      selectedNode?.model,
+      selectedNode?.latitude,
+      selectedNode?.longitude,
+      activeEnsemble?.ensemble_name,
+      selectedIdOns,
+      startPeriod,
+      endPeriod,
+      correlationAgg,
+    ],
+    queryFn: () =>
+      selectedNode && activeEnsemble?.ensemble_name
+        ? fetchCorrelation({
+            node_id: selectedNode.node_id,
+            model: selectedNode.model,
+            latitude: selectedNode.latitude,
+            longitude: selectedNode.longitude,
+            ensemble_name: activeEnsemble.ensemble_name,
+            id_ons: selectedIdOns || undefined,
+            start_year: startYear,
+            end_year: endYear,
+            start_month: startPeriod,
+            end_month: endPeriod,
+            aggregation: correlationAgg,
+          })
+        : Promise.resolve(null),
+    enabled: !!selectedNode && !!activeEnsemble?.ensemble_name,
   });
 
   // 9. Fetch Analytics
@@ -308,9 +362,6 @@ export const App: React.FC = () => {
         : Promise.resolve(null),
     enabled: !!selectedNode,
   });
-
-  const activeEnsemble = ensembles.find((e) => e.id_ons === selectedIdOns);
-  const isLight = theme === 'light';
 
   return (
     <div className={`min-h-screen flex ${isLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-950 text-zinc-100'}`}>
@@ -566,6 +617,21 @@ export const App: React.FC = () => {
 
                   <button
                     type="button"
+                    onClick={() => setActiveTab('correlation')}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                      activeTab === 'correlation'
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                        : isLight
+                        ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                    }`}
+                  >
+                    <GitCompare className="w-4 h-4" />
+                    <span>Correlação MCP (Reanálise vs Usina)</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setActiveTab('rose_weibull')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
                       activeTab === 'rose_weibull'
@@ -584,7 +650,7 @@ export const App: React.FC = () => {
                     onClick={() => setActiveTab('profiles')}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
                       activeTab === 'profiles'
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                        ? 'bg-blue-500/20 text-blue-600 dark:text-blue-300 border border-blue-500/30'
                         : isLight
                         ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                         : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
@@ -619,6 +685,19 @@ export const App: React.FC = () => {
                     aggregation={aggregation}
                     onChangeAggregation={(agg) => setAggregation(agg)}
                     isLoading={isLoadingSeries}
+                  />
+                )}
+
+                {/* Tab 1.1: Linear Correlation (MCP) */}
+                {activeTab === 'correlation' && (
+                  <LinearCorrelationChart
+                    data={correlationData || null}
+                    nodeTitle={selectedNode ? `${selectedNode.node_id} (${selectedNode.position})` : 'Nenhum'}
+                    model={selectedNode?.model || 'ERA5'}
+                    ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
+                    aggregation={correlationAgg}
+                    onChangeAggregation={(agg) => setCorrelationAgg(agg)}
+                    isLoading={isLoadingCorrelation}
                   />
                 )}
 
