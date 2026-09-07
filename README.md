@@ -1,4 +1,4 @@
-﻿# Wind Resource Manager 🌪️⚡
+# Wind Resource Manager 🌪️⚡
 
 **Sistema Padrão Ouro para Gestão de Recursos Eólicos, Catalogação ONS e Reanálise Histórica de 30 Anos (ERA5 & MERRA-2)**
 
@@ -60,12 +60,19 @@ O **Wind Resource Manager** é uma plataforma analítica de alta performance des
 
 ## 📦 Como Executar Localmente (Windows)
 
-### Opção 1: Inicializador Completo (Recomendado)
+### Iniciar a Aplicação:
 Dê um duplo-clique no arquivo:
 ```
 Iniciar_Wind_Resource_Manager.bat
 ```
 Ele iniciará o Backend em `http://127.0.0.1:8000`, o Frontend em `http://localhost:5173` e abrirá seu navegador automaticamente.
+
+### Fechar a Aplicação:
+Dê um duplo-clique no arquivo:
+```
+Fechar_Wind_Resource_Manager.bat
+```
+Ele finaliza com segurança todos os processos do Backend (porta 8000) e Frontend (porta 5173), liberando as portas e fechando os terminais.
 
 ### Opção 2: Manualmente via Terminal
 

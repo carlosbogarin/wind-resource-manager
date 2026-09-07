@@ -1,11 +1,12 @@
-﻿@echo off
+@echo off
 chcp 65001 > nul
 title Wind Resource Manager - Backend API
 
 echo =====================================================================
 echo            WIND RESOURCE MANAGER - BACKEND API (FASTAPI)
 echo =====================================================================
-echo.
+cd /d "%~dp0..\.."
+
 echo Ativando ambiente virtual .venv...
 call .venv\Scripts\activate.bat
 echo.

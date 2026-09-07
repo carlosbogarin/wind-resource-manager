@@ -4,6 +4,21 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.3] - 2026-09-07
+
+### 🚀 Experiência do Desenvolvedor & Operação (Scripts BAT)
+- **Criação do `Fechar_Wind_Resource_Manager.bat`**:
+  - Script batch com 1 clique para encerrar com segurança todos os serviços e processos da aplicação.
+  - Detecta e mata processos nas portas `8000` (FastAPI / Python) e `5173` (Vite / Node), evitando conflito de "Port already in use".
+  - Fecha as janelas do terminal CMD associadas e fecha a si mesmo suavemente.
+- **Unificação e Limpeza da Raiz**:
+  - Mantidos na raiz do projeto apenas **2 scripts essenciais**:
+    1. [`Iniciar_Wind_Resource_Manager.bat`](file:///c:/Coding/Wind%20Resource%20Manager/Iniciar_Wind_Resource_Manager.bat) (Inicia Backend, Frontend e abre navegador).
+    2. [`Fechar_Wind_Resource_Manager.bat`](file:///c:/Coding/Wind%20Resource%20Manager/Fechar_Wind_Resource_Manager.bat) (Encerra tudo com 1 clique).
+  - Os scripts auxiliares de desenvolvimento isolado (`Iniciar_Backend.bat` e `Iniciar_Frontend.bat`) foram organizados na pasta `scripts/dev/` com caminhos relativos robustos (`%~dp0`), eliminando a confusão de múltiplos executáveis de inicialização na raiz.
+
+---
+
 ## [1.3.2] - 2026-09-07
 
 ### ✨ Adicionado & Melhorado
