@@ -301,7 +301,7 @@ export const App: React.FC = () => {
     );
   };
 
-  // 7.1. Spatial IDW Extrapolation Mutation (Vortex FdC Methodology)
+  // 7.1. Spatial Vector IDW Extrapolation Mutation (Shepard, 1968 / WMO No. 8)
   const interpolateMutation = useMutation({
     mutationFn: runSpatialInterpolation,
     onSuccess: (data) => {
@@ -877,7 +877,7 @@ export const App: React.FC = () => {
                 />
               </section>
 
-              {/* Vortex Extrapolation Card (Available for both ONS and Manual points) */}
+              {/* Spatial Vector Extrapolation Card (Available for both ONS and Manual points) */}
               <section>
                 <VortexExtrapolationCard
                   substation={currentSubstation}

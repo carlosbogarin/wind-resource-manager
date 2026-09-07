@@ -24,7 +24,7 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
           <span>Fundamentação Metodológica & Formulações Geocientíficas</span>
         </h2>
         <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-          Rigor matemático, extrapolação espacial vetorial (Padrão Mundial Vortex FdC), formulações geodésicas e malhas de reanálise atmosférica
+          Rigor matemático, extrapolação espacial vetorial (Shepard, 1968 / WMO No. 8), formulações geodésicas e malhas de reanálise atmosférica
         </p>
       </div>
 
@@ -246,6 +246,61 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Academic & Normative References */}
+      <div className={`p-6 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-zinc-800'} space-y-4 text-xs text-slate-600 dark:text-zinc-300 shadow-sm`}>
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-zinc-800 pb-2">
+          <BookOpen className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+          <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+            Referências Bibliográficas & Normas Técnicas Internacionais
+          </h3>
+        </div>
+
+        <ul className="space-y-2.5 text-[11px] leading-relaxed">
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[1]</span>
+            <div>
+              <strong>Shepard, D. (1968).</strong> <em>"A two-dimensional interpolation function for irregularly-spaced data"</em>. Proceedings of the 1968 23rd ACM National Conference, pp. 517–524. ACM Press.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Fundamentação matemática formal da ponderação espacial pelo inverso da distância (IDW).</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[2]</span>
+            <div>
+              <strong>World Meteorological Organization - WMO. (2021).</strong> <em>"Guide to Instruments and Methods of Observation (WMO-No. 8) - Volume I: Measurement of Meteorological Variables, Chapter 5: Surface Wind"</em>. Genebra: WMO.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Padronização internacional da decomposição vetorial em componentes ortogonais zonal (u) e meridional (v).</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[3]</span>
+            <div>
+              <strong>International Electrotechnical Commission - IEC. (2017).</strong> <em>"IEC 61400-12-1: Wind energy generation systems - Part 12-1: Power performance measurements of electricity producing wind turbines"</em>. International Standard.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Norma técnica de avaliação anemométrica, extrapolação espacial e tratamento de incertezas em complexos eólicos.</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[4]</span>
+            <div>
+              <strong>Hersbach, H., Bell, B., Berrisford, P., et al. (2020).</strong> <em>"The ERA5 global reanalysis"</em>. Quarterly Journal of the Royal Meteorological Society, 146(730), pp. 1999–2049.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Documentação e validação observacional da reanálise atmosférica global ERA5 (ECMWF).</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[5]</span>
+            <div>
+              <strong>Gelaro, R., McCarty, W., Suárez, M. J., et al. (2017).</strong> <em>"The Modern-Era Retrospective Analysis for Research and Applications, Version 2 (MERRA-2)"</em>. Journal of Climate, 30(14), pp. 5419–5454.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Publicação seminal da reanálise atmosférica MERRA-2 e sistema de assimilação de dados do GMAO/NASA.</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[6]</span>
+            <div>
+              <strong>Vincenty, T. (1975).</strong> <em>"Direct and Inverse Solutions of Geodesics on the Ellipsoid with application of nested equations"</em>. Survey Review, 23(176), pp. 88–93.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Equações geodésicas ortodrômicas para determinação precisa de distâncias e azimutes sobre a superfície terrestre.</span>
+            </div>
+          </li>
+        </ul>
       </div>
     </div>
   );

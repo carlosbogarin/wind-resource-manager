@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import {
   Layers,
   Sparkles,
-  ExternalLink,
   CheckCircle2,
   RefreshCw,
   Sliders,
   ChevronDown,
   ChevronUp,
-  Info,
   Check,
 } from 'lucide-react';
 import { ReanalysisNode, SubstationGeo } from '../types';
@@ -87,8 +85,8 @@ export const VortexExtrapolationCard: React.FC<VortexExtrapolationCardProps> = (
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">
                 Extrapolação Horizontal na Coordenada Alvo
               </h3>
-              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-300 dark:border-purple-800">
-                Padrão Vortex FdC
+              <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-cyan-100 text-cyan-800 dark:bg-cyan-950 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-800">
+                IDW Vetorial (u, v)
               </span>
               {hasExtrapolatedSeries && (
                 <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
@@ -97,7 +95,7 @@ export const VortexExtrapolationCard: React.FC<VortexExtrapolationCardProps> = (
               )}
             </div>
             <p className="text-xs text-slate-500 dark:text-zinc-400">
-              Interpolação vetorial horária (u, v) ponderada por IDW esférico (p=2) com conservação física de momento
+              Sintetização horária no ponto exato ponderada pelos 4 nós circundantes (Shepard, 1968)
             </p>
           </div>
         </div>
@@ -115,36 +113,10 @@ export const VortexExtrapolationCard: React.FC<VortexExtrapolationCardProps> = (
 
       {isExpanded && (
         <div className="p-4 space-y-4">
-          {/* Method Reference & Vortex Link */}
-          <div
-            className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
-              isLight
-                ? 'bg-indigo-50/70 border-indigo-200/80 text-indigo-950'
-                : 'bg-indigo-950/30 border-indigo-900/60 text-indigo-200'
-            }`}
-          >
-            <Info className="w-4 h-4 text-indigo-500 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <p>
-                <strong>Melhores Práticas Mundiais:</strong> A interpolação linear escalar de vento gera erros físicos graves em direções opostas (ex: 359° e 1° resultando em 180°). Seguindo a metodologia da{' '}
-                <a
-                  href="https://vortexfdc.com/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-bold underline text-indigo-600 dark:text-indigo-400 inline-flex items-center gap-0.5 hover:opacity-80"
-                >
-                  Vortex FdC (Vortex SERIES)
-                  <ExternalLink className="w-3 h-3 inline" />
-                </a>
-                , o algoritmo decompõe as séries horárias dos 4 nós nos vetores ortogonais zonal <code>u = -S·sin(θ)</code> e meridional <code>v = -S·cos(θ)</code> antes da ponderação espacial IDW.
-              </p>
-            </div>
-          </div>
-
           {/* Section 1: Pre-extrapolation Comparison (Closest Nodes) */}
           <div className="space-y-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-zinc-400">
-              1. Comparativo Pré-Extrapolação: Proximidade dos Nós Mais Próximos
+              1. Escolha a Fonte de Reanálise para Extrapolação:
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* ERA5 Card */}
@@ -342,6 +314,11 @@ export const VortexExtrapolationCard: React.FC<VortexExtrapolationCardProps> = (
               </span>
             </div>
           )}
+
+          {/* Direct link to methodology */}
+          <div className="pt-2 border-t border-slate-100 dark:border-zinc-800 text-[11px] text-slate-500 dark:text-zinc-500">
+            <span>Para formulações matemáticas detalhadas (vetores u, v, ponderação IDW e geodésia), consulte o módulo <strong>Metodologia</strong>.</span>
+          </div>
         </div>
       )}
     </div>
