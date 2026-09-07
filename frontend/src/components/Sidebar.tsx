@@ -288,45 +288,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </nav>
       </div>
 
-      {/* Bottom Summary Badge */}
-      <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800/80'} space-y-2`}>
-        {isCollapsed ? (
-          <div
-            className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
-              isLight ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
-            }`}
-            title={`Bases Carregadas: ${totalEnsembles || 155} conjuntos, ${totalCompanies || 31} empresas`}
-          >
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 mb-1 animate-pulse"></span>
-            <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
-              {totalEnsembles || 155}
-            </span>
-          </div>
-        ) : (
-          <>
-            <div className={`p-3 rounded-xl border ${
-              isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
-            } text-xs space-y-1.5`}>
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-zinc-500 font-medium">Bases Carregadas</span>
-                <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
-              </div>
-              <div className="flex justify-between font-mono text-[11px]">
-                <span>Conjuntos:</span>
-                <strong className="text-cyan-600 dark:text-cyan-400">{totalEnsembles || 155}</strong>
-              </div>
-              <div className="flex justify-between font-mono text-[11px]">
-                <span>Empresas:</span>
-                <strong className="text-emerald-600 dark:text-emerald-400">{totalCompanies || 31}</strong>
-              </div>
+      {/* Bottom Summary Badge - Exibido apenas no módulo 'Reanálises - ONS' */}
+      {activeModule === 'reanalysis' && (
+        <div className={`mt-6 pt-4 border-t ${isLight ? 'border-slate-200' : 'border-zinc-800/80'} space-y-2`}>
+          {isCollapsed ? (
+            <div
+              className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center cursor-pointer transition-colors ${
+                isLight ? 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300 hover:bg-zinc-800'
+              }`}
+              title={`Bases Carregadas: ${totalEnsembles || 155} conjuntos, ${totalCompanies || 31} empresas`}
+            >
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 mb-1 animate-pulse"></span>
+              <span className="text-[10px] font-mono font-bold text-cyan-600 dark:text-cyan-400">
+                {totalEnsembles || 155}
+              </span>
             </div>
+          ) : (
+            <>
+              <div className={`p-3 rounded-xl border ${
+                isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-zinc-900/80 border-zinc-800 text-zinc-300'
+              } text-xs space-y-1.5`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-500 font-medium">Bases Carregadas</span>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500"></span>
+                </div>
+                <div className="flex justify-between font-mono text-[11px]">
+                  <span>Conjuntos:</span>
+                  <strong className="text-cyan-600 dark:text-cyan-400">{totalEnsembles || 155}</strong>
+                </div>
+                <div className="flex justify-between font-mono text-[11px]">
+                  <span>Empresas:</span>
+                  <strong className="text-emerald-600 dark:text-emerald-400">{totalCompanies || 31}</strong>
+                </div>
+              </div>
 
-            <p className="text-[10px] text-zinc-500 text-center">
-              ECMWF ERA5 & NASA MERRA-2
-            </p>
-          </>
-        )}
-      </div>
+              <p className="text-[10px] text-zinc-500 text-center">
+                ECMWF ERA5 & NASA MERRA-2
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </aside>
   );
 };
