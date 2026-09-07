@@ -73,11 +73,88 @@ export const App: React.FC = () => {
   // 2. Navigation Module State
   const [activeModule, setActiveModule] = useState<ActiveModule>('reanalysis');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const isManualModule = activeModule === 'reanalysis_manual';
 
-  // 3. Selection State
+  // 3. Selection State - ONS
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [selectedIdOns, setSelectedIdOns] = useState<string | null>(null);
-  const [selectedNode, setSelectedNode] = useState<ReanalysisNode | null>(null);
+  const [onsSelectedNode, setOnsSelectedNode] = useState<ReanalysisNode | null>(null);
+  const [onsIsExtrapolatedActive, setOnsIsExtrapolatedActive] = useState<boolean>(false);
+  const [onsSavedGridNode, setOnsSavedGridNode] = useState<ReanalysisNode | null>(null);
+  const [onsExtrapolatedModel, setOnsExtrapolatedModel] = useState<'ERA5' | 'MERRA-2'>('ERA5');
+  const [onsExtrapolationDetails, setOnsExtrapolationDetails] = useState<{
+    recordsCount?: number;
+    fileSizeMb?: number;
+    cached?: boolean;
+    weights?: Record<string, number>;
+  } | null>(null);
+  const [onsHasExtrapolatedSeries, setOnsHasExtrapolatedSeries] = useState<boolean>(false);
+
+  // 3.1. Selection State - Manual (Totalmente independente do ONS)
+  const [manualLat, setManualLat] = useState<number>(-14.1028);
+  const [manualLon, setManualLon] = useState<number>(-42.6094);
+  const [manualSiteName, setManualSiteName] = useState<string>('Caetité (Ponto Manual)');
+  const [manualSelectedNode, setManualSelectedNode] = useState<ReanalysisNode | null>(null);
+  const [manualIsExtrapolatedActive, setManualIsExtrapolatedActive] = useState<boolean>(false);
+  const [manualSavedGridNode, setManualSavedGridNode] = useState<ReanalysisNode | null>(null);
+  const [manualExtrapolatedModel, setManualExtrapolatedModel] = useState<'ERA5' | 'MERRA-2'>('ERA5');
+  const [manualExtrapolationDetails, setManualExtrapolationDetails] = useState<{
+    recordsCount?: number;
+    fileSizeMb?: number;
+    cached?: boolean;
+    weights?: Record<string, number>;
+  } | null>(null);
+  const [manualHasExtrapolatedSeries, setManualHasExtrapolatedSeries] = useState<boolean>(false);
+
+  // Estados derivados conforme o módulo ativo
+  const selectedNode = isManualModule ? manualSelectedNode : onsSelectedNode;
+  const setSelectedNode = (node: ReanalysisNode | null) => {
+    if (isManualModule) setManualSelectedNode(node);
+    else setOnsSelectedNode(node);
+  };
+
+  const isExtrapolatedActive = isManualModule ? manualIsExtrapolatedActive : onsIsExtrapolatedActive;
+  const setIsExtrapolatedActive = (val: boolean | ((prev: boolean) => boolean)) => {
+    if (isManualModule) {
+      setManualIsExtrapolatedActive(val);
+    } else {
+      setOnsIsExtrapolatedActive(val);
+    }
+  };
+
+  const extrapolationDetails = isManualModule ? manualExtrapolationDetails : onsExtrapolationDetails;
+  const setExtrapolationDetails = (val: any) => {
+    if (isManualModule) setManualExtrapolationDetails(val);
+    else setOnsExtrapolationDetails(val);
+  };
+
+  const hasExtrapolatedSeries = isManualModule ? manualHasExtrapolatedSeries : onsHasExtrapolatedSeries;
+  const setHasExtrapolatedSeries = (val: boolean | ((prev: boolean) => boolean)) => {
+    if (isManualModule) {
+      setManualHasExtrapolatedSeries(val);
+    } else {
+      setOnsHasExtrapolatedSeries(val);
+    }
+  };
+
+  const extrapolatedModel = isManualModule ? manualExtrapolatedModel : onsExtrapolatedModel;
+  const setExtrapolatedModel = (val: 'ERA5' | 'MERRA-2') => {
+    if (isManualModule) setManualExtrapolatedModel(val);
+    else setOnsExtrapolatedModel(val);
+  };
+
+  const savedGridNode = isManualModule ? manualSavedGridNode : onsSavedGridNode;
+  const setSavedGridNode = (node: ReanalysisNode | null) => {
+    if (isManualModule) setManualSavedGridNode(node);
+    else setOnsSavedGridNode(node);
+  };
+
+  // Limpa notificações ao trocar de módulo para garantir independência total
+  useEffect(() => {
+    setNotification(null);
+  }, [activeModule]);
+
+  // Common UI State
   const [startPeriod, setStartPeriod] = useState<string>('1996-08');
   const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
@@ -86,23 +163,6 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const autoDownloadedEnsembleRef = React.useRef<string | null>(null);
-
-  // 3.1. Manual Coordinates State (Module: Reanálises - Manual)
-  const [manualLat, setManualLat] = useState<number>(-14.1028);
-  const [manualLon, setManualLon] = useState<number>(-42.6094);
-  const [manualSiteName, setManualSiteName] = useState<string>('Caetité (Ponto Manual)');
-
-  // 3.2. Vortex Extrapolation State (Available for both ONS and Manual modules)
-  const [extrapolationDetails, setExtrapolationDetails] = useState<{
-    recordsCount?: number;
-    fileSizeMb?: number;
-    cached?: boolean;
-    weights?: Record<string, number>;
-  } | null>(null);
-  const [isExtrapolatedActive, setIsExtrapolatedActive] = useState<boolean>(false);
-  const [savedGridNode, setSavedGridNode] = useState<ReanalysisNode | null>(null);
-  const [extrapolatedModel, setExtrapolatedModel] = useState<'ERA5' | 'MERRA-2'>('ERA5');
-  const [hasExtrapolatedSeries, setHasExtrapolatedSeries] = useState<boolean>(false);
 
   // Anos inteiros derivados para carregamento de arquivos e queries base
   const startYear = parseInt(startPeriod.split('-')[0]) || 1996;
@@ -186,7 +246,6 @@ export const App: React.FC = () => {
     enabled: activeModule === 'reanalysis_manual',
   });
 
-  const isManualModule = activeModule === 'reanalysis_manual';
   const currentNodesData = isManualModule ? manualNodesData : nodesData;
   const currentSubstation = currentNodesData?.substation || null;
 
@@ -361,24 +420,28 @@ export const App: React.FC = () => {
 
       if (autoDownloadedEnsembleRef.current !== selectedIdOns) {
         autoDownloadedEnsembleRef.current = selectedIdOns;
-        setSelectedNode(closestNode);
-        setIsExtrapolatedActive(false);
-        setHasExtrapolatedSeries(false);
-        setExtrapolationDetails(null);
+        setOnsSelectedNode(closestNode);
+        setOnsIsExtrapolatedActive(false);
+        setOnsHasExtrapolatedSeries(false);
+        setOnsExtrapolationDetails(null);
 
         if (!closestNode.is_cached && !downloadMutation.isPending) {
           handleDownloadNode(closestNode);
         }
-      } else if (selectedNode && !selectedNode.is_interpolated) {
+      } else if (!onsSelectedNode) {
+        setOnsSelectedNode(closestNode);
+      } else if (!onsSelectedNode.is_interpolated) {
         const found = allNodes.find(
-          (n) => n.node_id === selectedNode.node_id && n.model === selectedNode.model
+          (n) => n.node_id === onsSelectedNode.node_id && n.model === onsSelectedNode.model
         );
         if (found) {
-          setSelectedNode(found);
+          setOnsSelectedNode(found);
+        } else {
+          setOnsSelectedNode(closestNode);
         }
       }
     }
-  }, [isManualModule, nodesData, selectedIdOns]);
+  }, [isManualModule, nodesData, selectedIdOns, onsSelectedNode]);
 
   // Auto-seleciona nó mais próximo no módulo Manual
   useEffect(() => {
@@ -386,14 +449,14 @@ export const App: React.FC = () => {
       const allNodes = [...manualNodesData.era5_nodes, ...manualNodesData.merra2_nodes];
       if (allNodes.length === 0) return;
       const closest = [...allNodes].sort((a, b) => a.distance_km - b.distance_km)[0];
-      if (!selectedNode || !allNodes.some((n) => n.node_id === selectedNode.node_id)) {
-        setSelectedNode(closest);
-        setIsExtrapolatedActive(false);
-        setHasExtrapolatedSeries(false);
-        setExtrapolationDetails(null);
+      if (!manualSelectedNode || !allNodes.some((n) => n.node_id === manualSelectedNode.node_id)) {
+        setManualSelectedNode(closest);
+        setManualIsExtrapolatedActive(false);
+        setManualHasExtrapolatedSeries(false);
+        setManualExtrapolationDetails(null);
       }
     }
-  }, [isManualModule, manualNodesData]);
+  }, [isManualModule, manualNodesData, manualSelectedNode]);
 
   const handleDownloadAllNodes = async () => {
     if (!currentNodesData) return;

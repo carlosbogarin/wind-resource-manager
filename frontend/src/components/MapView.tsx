@@ -13,6 +13,111 @@ interface MapViewProps {
   theme?: 'light' | 'dark';
 }
 
+interface FormattedLocation {
+  primaryTitle: string;
+  badgeLabel: string;
+  badgeColor: string;
+  subtitle: string;
+  friendlyName: string;
+}
+
+const formatLocationInfo = (item: any): FormattedLocation => {
+  const addr = item.address || {};
+  const addresstype = item.addresstype || item.type || '';
+  const name = item.name || item.display_name.split(',')[0].trim();
+  const stateCode = addr['ISO3166-2-lvl4']?.replace('BR-', '') || '';
+  const stateName = addr.state || '';
+  const region = addr.region || '';
+
+  // 1. Estado da Federação
+  if (addresstype === 'state') {
+    return {
+      primaryTitle: name,
+      badgeLabel: 'Estado',
+      badgeColor: 'bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+      subtitle: `Estado de ${name} • ${region || 'Brasil'}${stateCode ? ` (${stateCode})` : ''}`,
+      friendlyName: `${name} (Estado)`,
+    };
+  }
+
+  // 2. Cidade / Município / Capital
+  if (addresstype === 'city' || addresstype === 'municipality' || addresstype === 'town') {
+    const isCapital =
+      item.place_rank <= 16 &&
+      (name === 'Rio de Janeiro' ||
+        name === 'São Paulo' ||
+        name === 'Salvador' ||
+        name === 'Fortaleza' ||
+        name === 'Belo Horizonte' ||
+        name === 'Curitiba' ||
+        name === 'Recife' ||
+        name === 'Porto Alegre' ||
+        name === 'Brasília' ||
+        name === 'Goiânia' ||
+        name === 'Belém' ||
+        name === 'Manaus' ||
+        name === 'São Luís' ||
+        name === 'Maceió' ||
+        name === 'Natal' ||
+        name === 'Teresina' ||
+        name === 'João Pessoa' ||
+        name === 'Aracaju' ||
+        name === 'Cuiabá' ||
+        name === 'Campo Grande' ||
+        name === 'Florianópolis' ||
+        name === 'Vitória' ||
+        name === 'Porto Velho' ||
+        name === 'Macapá' ||
+        name === 'Boa Vista' ||
+        name === 'Palmas' ||
+        name === 'Rio Branco');
+
+    const badgeLabel = isCapital ? 'Capital' : 'Município';
+    const stateSuffix = stateCode || stateName;
+    return {
+      primaryTitle: name,
+      badgeLabel,
+      badgeColor: isCapital
+        ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300 border-amber-500/30'
+        : 'bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 border-cyan-500/30',
+      subtitle: `${isCapital ? 'Capital' : 'Município'} • ${stateName || region}${stateCode ? ` (${stateCode})` : ''}`,
+      friendlyName: stateSuffix && stateSuffix !== name ? `${name} (${stateSuffix})` : `${name} (Cidade)`,
+    };
+  }
+
+  // 3. Bairro / Distrito / Subúrbio
+  if (addresstype === 'suburb' || addresstype === 'district' || addresstype === 'neighbourhood') {
+    const parentCity = addr.city || addr.town || addr.municipality || '';
+    return {
+      primaryTitle: name,
+      badgeLabel: 'Bairro',
+      badgeColor: 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+      subtitle: `Bairro em ${parentCity || ''}${stateCode ? ` - ${stateCode}` : ''}`,
+      friendlyName: `${name}, ${parentCity || ''}${stateCode ? ` (${stateCode})` : ''}`,
+    };
+  }
+
+  // 4. Vila / Povoado
+  if (addresstype === 'village' || addresstype === 'hamlet') {
+    return {
+      primaryTitle: name,
+      badgeLabel: 'Vila',
+      badgeColor: 'bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30',
+      subtitle: `Localidade • ${stateName || region}${stateCode ? ` (${stateCode})` : ''}`,
+      friendlyName: `${name}${stateCode ? ` (${stateCode})` : ''}`,
+    };
+  }
+
+  // 5. Genérico / Outros
+  return {
+    primaryTitle: name,
+    badgeLabel: addresstype || 'Local',
+    badgeColor: 'bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30',
+    subtitle: item.display_name,
+    friendlyName: name,
+  };
+};
+
 type MapLayerType = 'osm' | 'dark' | 'satellite';
 
 export const MapView: React.FC<MapViewProps> = ({
@@ -41,6 +146,15 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const isLight = theme === 'light';
   const isManual = substation?.id_ons === 'MANUAL';
+
+  // Limpa busca quando sai do modo manual
+  useEffect(() => {
+    if (!isManual) {
+      setSearchQuery('');
+      setSearchResults([]);
+      setShowResults(false);
+    }
+  }, [isManual]);
 
   // Listen for outside clicks to close search dropdown
   useEffect(() => {
@@ -108,12 +222,9 @@ export const MapView: React.FC<MapViewProps> = ({
     const lon = parseFloat(item.lon);
     if (isNaN(lat) || isNaN(lon)) return;
 
-    const parts = item.display_name.split(',').map((s: string) => s.trim());
-    const mainName = item.name || parts[0];
-    const stateName = parts.length > 2 ? parts[parts.length - 3] || parts[1] : parts[1] || '';
-    const friendlyName = stateName && stateName !== mainName ? `${mainName} (${stateName})` : mainName;
+    const info = formatLocationInfo(item);
 
-    setSearchQuery(friendlyName);
+    setSearchQuery(info.friendlyName);
     setShowResults(false);
 
     if (mapInstanceRef.current) {
@@ -121,7 +232,7 @@ export const MapView: React.FC<MapViewProps> = ({
     }
 
     if (onMapClick) {
-      onMapClick(Number(lat.toFixed(5)), Number(lon.toFixed(5)), friendlyName);
+      onMapClick(Number(lat.toFixed(5)), Number(lon.toFixed(5)), info.friendlyName);
     }
   };
 
@@ -410,96 +521,108 @@ export const MapView: React.FC<MapViewProps> = ({
     <div className="relative z-0 w-full h-[460px] rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-xl bg-slate-100 dark:bg-zinc-950">
       <div ref={mapContainerRef} className="w-full h-full" />
 
-      {/* Location Search Bar with Lupinha (OpenStreetMap Nominatim Geocoding) */}
-      <div
-        ref={searchContainerRef}
-        className="absolute top-3.5 left-14 z-[20] w-64 sm:w-80"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-        onDoubleClick={(e) => e.stopPropagation()}
-        onWheel={(e) => e.stopPropagation()}
-      >
+      {/* Location Search Bar with Lupinha (OpenStreetMap Nominatim Geocoding) - Apenas no Módulo Manual */}
+      {isManual && (
         <div
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-lg backdrop-blur-md transition-all ${
-            isLight
-              ? 'bg-white/95 border-slate-300 shadow-slate-300/40 text-slate-800 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-400/20'
-              : 'bg-zinc-900/95 border-zinc-700/80 shadow-black/50 text-zinc-100 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20'
-          }`}
+          ref={searchContainerRef}
+          className="absolute top-3.5 left-14 z-[20] w-64 sm:w-80"
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
         >
-          {isSearching ? (
-            <Loader2 className="w-4 h-4 text-cyan-500 animate-spin flex-shrink-0" />
-          ) : (
-            <Search className="w-4 h-4 text-slate-400 dark:text-zinc-400 flex-shrink-0" />
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-lg backdrop-blur-md transition-all ${
+              isLight
+                ? 'bg-white/95 border-slate-300 shadow-slate-300/40 text-slate-800 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-400/20'
+                : 'bg-zinc-900/95 border-zinc-700/80 shadow-black/50 text-zinc-100 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20'
+            }`}
+          >
+            {isSearching ? (
+              <Loader2 className="w-4 h-4 text-cyan-500 animate-spin flex-shrink-0" />
+            ) : (
+              <Search className="w-4 h-4 text-slate-400 dark:text-zinc-400 flex-shrink-0" />
+            )}
+
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={handleQueryChange}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (searchResults.length > 0) setShowResults(true);
+              }}
+              placeholder="Buscar cidade, estado..."
+              className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+            />
+
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors p-0.5"
+                title="Limpar busca"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Dropdown Suggestions */}
+          {showResults && searchResults.length > 0 && (
+            <div
+              className={`mt-1.5 w-full rounded-xl border shadow-2xl max-h-60 overflow-y-auto py-1 text-xs backdrop-blur-md ${
+                isLight
+                  ? 'bg-white/98 border-slate-200 divide-y divide-slate-100 shadow-slate-400/30'
+                  : 'bg-zinc-900/98 border-zinc-700/90 divide-y divide-zinc-800 shadow-black/70'
+              }`}
+            >
+              {searchResults.map((item, idx) => {
+                const info = formatLocationInfo(item);
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSelectLocation(item)}
+                    className={`w-full text-left px-3 py-2 flex items-start gap-2.5 transition-colors ${
+                      isLight
+                        ? 'hover:bg-cyan-50 text-slate-800'
+                        : 'hover:bg-zinc-800/80 text-zinc-200'
+                    }`}
+                  >
+                    <MapPin className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold truncate text-xs">
+                          {info.primaryTitle}
+                        </span>
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase tracking-wider ${info.badgeColor}`}
+                        >
+                          {info.badgeLabel}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+                        {info.subtitle}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           )}
 
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={handleQueryChange}
-            onKeyDown={handleKeyDown}
-            onFocus={() => {
-              if (searchResults.length > 0) setShowResults(true);
-            }}
-            placeholder="Buscar cidade, estado..."
-            className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 dark:placeholder:text-zinc-500"
-          />
-
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={handleClear}
-              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors p-0.5"
-              title="Limpar busca"
+          {showResults && !isSearching && searchResults.length === 0 && searchQuery.trim().length >= 2 && (
+            <div
+              className={`mt-1.5 w-full rounded-xl border p-2.5 text-center text-xs shadow-xl ${
+                isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-zinc-900 border-zinc-700 text-zinc-400'
+              }`}
             >
-              <X className="w-3.5 h-3.5" />
-            </button>
+              Nenhum local encontrado para "{searchQuery}".
+            </div>
           )}
         </div>
-
-        {/* Dropdown Suggestions */}
-        {showResults && searchResults.length > 0 && (
-          <div
-            className={`mt-1.5 w-full rounded-xl border shadow-2xl max-h-60 overflow-y-auto py-1 text-xs backdrop-blur-md ${
-              isLight
-                ? 'bg-white/98 border-slate-200 divide-y divide-slate-100 shadow-slate-400/30'
-                : 'bg-zinc-900/98 border-zinc-700/90 divide-y divide-zinc-800 shadow-black/70'
-            }`}
-          >
-            {searchResults.map((item, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSelectLocation(item)}
-                className={`w-full text-left px-3 py-2 flex items-start gap-2.5 transition-colors ${
-                  isLight
-                    ? 'hover:bg-cyan-50 text-slate-800'
-                    : 'hover:bg-zinc-800/80 text-zinc-200'
-                }`}
-              >
-                <MapPin className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0 mt-0.5" />
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold truncate text-xs">
-                    {item.name || item.display_name.split(',')[0]}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
-                    {item.display_name}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {showResults && !isSearching && searchResults.length === 0 && searchQuery.trim().length >= 2 && (
-          <div
-            className={`mt-1.5 w-full rounded-xl border p-2.5 text-center text-xs shadow-xl ${
-              isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-zinc-900 border-zinc-700 text-zinc-400'
-            }`}
-          >
-            Nenhum local encontrado para "{searchQuery}".
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Layer Switcher (Top Right - Free OpenStreetMap & Satellite) */}
       <div className="absolute top-4 right-4 z-[20] flex items-center p-1 rounded-xl bg-white/95 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-700/80 shadow-lg text-xs">
