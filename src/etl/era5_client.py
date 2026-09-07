@@ -125,8 +125,15 @@ def fetch_and_cache_era5(
     """Baixa a série temporal histórica de reanálise ERA5 com suporte a append incremental."""
     cache_path = get_era5_cache_path(node_id, lat, lon, start_year, end_year)
     existing_file = find_existing_era5_file(lat, lon)
+
+    # Obter data mais recente efetivamente disponível no acervo ERA5 (evita falsos deltas com o dia de hoje)
     today_str = datetime.now().strftime("%Y-%m-%d")
-    target_end_str = min(f"{end_year}-12-31", today_str)
+    try:
+        from src.etl.date_range_checker import check_era5_latest_date
+        era5_avail_dt = check_era5_latest_date()
+        target_end_str = min(f"{end_year}-12-31", era5_avail_dt.strftime("%Y-%m-%d"))
+    except Exception:
+        target_end_str = min(f"{end_year}-12-31", (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"))
 
     # 1. Se já existe arquivo Parquet e não é force, verifica se podemos reaproveitar ou fazer incremento delta
     if existing_file and existing_file.exists() and not force:

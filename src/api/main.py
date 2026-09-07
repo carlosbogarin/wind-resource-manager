@@ -36,6 +36,13 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"Falha ao gerar catálogo inicial na inicialização (será tentado sob demanda): {e}")
 
+    # Sincronizar catálogo de nós de reanálise no DuckDB com arquivos existentes no disco
+    try:
+        from src.database.reanalysis_catalog import sync_reanalysis_disk_to_duckdb
+        sync_reanalysis_disk_to_duckdb()
+    except Exception as e:
+        logger.warning(f"Falha ao sincronizar catálogo de reanálise DuckDB na inicialização: {e}")
+
     yield
     logger.info(f"Encerrando {settings.PROJECT_NAME}...")
 

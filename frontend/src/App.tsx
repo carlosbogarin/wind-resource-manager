@@ -214,13 +214,13 @@ export const App: React.FC = () => {
     },
   });
 
-  const handleDownloadNode = (node: ReanalysisNode) => {
+  const handleDownloadNode = (node: ReanalysisNode, forceReload: boolean = false) => {
     setSelectedNode(node);
     setDownloadingNodeId(node.node_id);
-    const isReload = node.is_cached;
+    const isReload = forceReload;
     setNotification({
       type: 'info',
-      text: `${isReload ? 'Recarregando' : 'Baixando'} série temporal sob demanda para ${node.node_id} (${node.model}, ${startPeriod} a ${endPeriod})...`,
+      text: `${isReload ? 'Atualizando' : 'Obtendo'} série temporal para ${node.node_id} (${node.model}, ${startPeriod} a ${endPeriod})...`,
     });
     downloadMutation.mutate(
       {

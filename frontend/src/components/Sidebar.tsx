@@ -93,14 +93,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
       } w-72 max-w-[85vw] ${
         isLight ? 'bg-white border-slate-200' : 'bg-zinc-950 border-zinc-800'
       } border-r flex flex-col justify-between ${
-        isCollapsed ? 'p-3' : 'p-4'
+        isCollapsed ? 'px-2.5 py-4' : 'px-3.5 py-4'
       } transition-all duration-300 ease-in-out lg:sticky lg:top-0 lg:h-screen lg:overflow-y-auto lg:translate-x-0 lg:z-30 shrink-0 ${
         isOpen ? 'translate-x-0 shadow-2xl shadow-black/80' : '-translate-x-full'
       }`}
     >
       {/* Top: Logo & Title */}
-      <div className="space-y-6">
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-1 py-1`}>
+      <div className="space-y-5">
+        <div className={`h-11 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'} px-0.5`}>
           <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'} w-full min-w-0`}>
             {/* Logo Icon */}
             <div
@@ -175,20 +175,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation Menu */}
-        <nav className="space-y-1.5">
-          {!isCollapsed && (
-            <div className={`px-2 pb-1 text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-zinc-500'}`}>
-              Módulos da Plataforma
-            </div>
-          )}
+        <nav className="space-y-2">
+          <div className="h-5 flex items-center px-2">
+            {!isCollapsed && (
+              <span className={`text-[11px] font-semibold uppercase tracking-wider ${isLight ? 'text-slate-400' : 'text-zinc-500'} truncate`}>
+                Módulos da Plataforma
+              </span>
+            )}
+          </div>
 
           {/* Module 1: Reanálises - ONS */}
           <button
             type="button"
             onClick={() => handleSelect('reanalysis')}
             title="Reanálises - ONS (Conjuntos Eólicos ONS)"
-            className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            className={`w-full h-12 flex items-center ${
+              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
             } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'reanalysis'
                 ? 'bg-gradient-to-r from-cyan-600 to-cyan-700 text-white shadow-lg shadow-cyan-600/30'
@@ -197,7 +199,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <Compass className="w-5 h-5 shrink-0" />
+            <Compass className="w-6 h-6 shrink-0" />
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="truncate">Reanálises - ONS</span>
@@ -213,8 +215,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={() => handleSelect('reanalysis_manual')}
             title="Reanálises - Manual (Coordenadas & Mapa)"
-            className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            className={`w-full h-12 flex items-center ${
+              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
             } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'reanalysis_manual'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/30'
@@ -223,7 +225,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <MapPin className="w-5 h-5 shrink-0" />
+            <MapPin className="w-6 h-6 shrink-0" />
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="truncate">Reanálises - Manual</span>
@@ -239,8 +241,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={() => handleSelect('dossier')}
             title="Dossiê & Exportação (CSV, Parquet & Sumários)"
-            className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            className={`w-full h-12 flex items-center ${
+              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
             } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'dossier'
                 ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg shadow-purple-600/30'
@@ -249,7 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <FileSpreadsheet className="w-5 h-5 shrink-0" />
+            <FileSpreadsheet className="w-6 h-6 shrink-0" />
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="truncate">Dossiê & Exportação</span>
@@ -265,8 +267,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             type="button"
             onClick={() => handleSelect('methodology')}
             title="Metodologia (Fórmulas, IDW & Malhas)"
-            className={`w-full flex items-center ${
-              isCollapsed ? 'justify-center p-2.5' : 'gap-3 px-3 py-2.5'
+            className={`w-full h-12 flex items-center ${
+              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
             } rounded-xl text-xs font-semibold transition-all text-left ${
               activeModule === 'methodology'
                 ? 'bg-gradient-to-r from-amber-600 to-amber-700 text-white shadow-lg shadow-amber-600/30'
@@ -275,7 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
             }`}
           >
-            <BookOpen className="w-5 h-5 shrink-0" />
+            <BookOpen className="w-6 h-6 shrink-0" />
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="truncate">Metodologia</span>

@@ -364,6 +364,35 @@ def test_vortex_spatial_vector_math():
     assert "vortex_era5_-14.1028_-42.6094_1996_2026.parquet" in str(p)
 
 
+def test_persistent_node_catalog_and_cross_project_cache():
+    """Testa sincronização DuckDB e reutilização de nós entre diferentes projetos e módulos."""
+    from src.database.reanalysis_catalog import (
+        is_node_cached_in_db,
+        list_all_downloaded_nodes,
+        sync_reanalysis_disk_to_duckdb,
+    )
+
+    # 1. Sincroniza disco com DuckDB
+    synced = sync_reanalysis_disk_to_duckdb()
+    assert synced >= 0
+
+    # 2. Catálogo deve listar nós persistidos
+    nodes = list_all_downloaded_nodes()
+    assert isinstance(nodes, list)
+
+    # 3. Endpoint /api/reanalysis/catalog
+    client = TestClient(app)
+    resp = client.get("/api/reanalysis/catalog")
+    assert resp.status_code == 200
+    catalog_list = resp.json()
+    assert isinstance(catalog_list, list)
+
+    # 4. Checagem de nós conhecidos em cache
+    for node in catalog_list:
+        assert is_node_cached_in_db(node["model"], node["latitude"], node["longitude"]) is True
+
+
+
 
 
 

@@ -111,9 +111,14 @@ def fetch_and_cache_merra2(
     """Baixa e processa série histórica do MERRA-2 com suporte a append incremental."""
     cache_path = get_merra2_cache_path(node_id, lat, lon, start_year, end_year)
     existing_file = find_existing_merra2_file(lat, lon)
-    today_dt = datetime.now()
-    today_fmt = today_dt.strftime("%Y%m%d")
-    target_end_dt = min(datetime(end_year, 12, 31), today_dt)
+    # Obter data mais recente efetivamente disponível na NASA (evita falsos deltas com o dia de hoje)
+    today_fmt = datetime.now().strftime("%Y%m%d")
+    try:
+        from src.etl.date_range_checker import check_merra2_latest_date
+        merra2_avail_dt = check_merra2_latest_date()
+        target_end_dt = min(datetime(end_year, 12, 31), merra2_avail_dt)
+    except Exception:
+        target_end_dt = min(datetime(end_year, 12, 31), datetime.now() - timedelta(days=15))
     target_end_fmt = target_end_dt.strftime("%Y%m%d")
     earliest_nasa_hourly = "20010101"
 

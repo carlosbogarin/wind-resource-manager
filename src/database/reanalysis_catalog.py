@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 import duckdb
+import polars as pl
 
 from src.core.config import settings
 
@@ -158,3 +160,75 @@ def list_all_downloaded_nodes() -> list[dict[str, Any]]:
         ]
     finally:
         con.close()
+
+
+def is_node_cached_in_db(model: str, lat: float, lon: float) -> bool:
+    """Verifica se um nó canônico (modelo, latitude, longitude) está presente no banco DuckDB e com arquivo existente no disco."""
+    rec = get_node_record(model, lat, lon)
+    if not rec:
+        return False
+    file_path = Path(rec["file_path"])
+    return file_path.exists() and rec["total_records"] > 0
+
+
+def sync_reanalysis_disk_to_duckdb() -> int:
+    """Escaneia o diretório de dados de reanálise e cataloga no DuckDB qualquer arquivo Parquet ainda não registrado.
+    
+    Garante sincronização bidirecional entre disco e banco DuckDB, permitindo que nós baixados
+    por qualquer projeto ou consulta manual sejam imediatamente reutilizados.
+    """
+    settings.REANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+    parquet_files = list(settings.REANALYSIS_DIR.glob("*.parquet"))
+    synced_count = 0
+
+    for pf in parquet_files:
+        filename = pf.name.lower()
+        if filename.startswith("vortex_") or "test" in filename:
+            continue
+
+        if filename.startswith("era5_"):
+            model = "ERA5"
+        elif filename.startswith("merra2_"):
+            model = "MERRA-2"
+        else:
+            continue
+
+        try:
+            df = pl.read_parquet(pf)
+            if "timestamp" not in df.columns or len(df) == 0:
+                continue
+
+            # Extrai coordenadas canônicas
+            if "latitude" in df.columns and "longitude" in df.columns:
+                lat = float(df["latitude"][0])
+                lon = float(df["longitude"][0])
+            else:
+                coords_match = re.findall(r"([+-]?\d+\.\d+)", filename)
+                if len(coords_match) >= 2:
+                    lat = float(coords_match[0])
+                    lon = float(coords_match[1])
+                else:
+                    continue
+
+            node_id = str(df["node_id"][0]) if "node_id" in df.columns else f"{model}_{lat:.4f}_{lon:.4f}"
+            min_ts = df["timestamp"].min()
+            max_ts = df["timestamp"].max()
+            file_mb = pf.stat().st_size / (1024 * 1024)
+
+            upsert_node_record(
+                model=model,
+                node_id=node_id,
+                lat=lat,
+                lon=lon,
+                min_timestamp=min_ts,
+                max_timestamp=max_ts,
+                total_records=len(df),
+                file_path=pf,
+                file_size_mb=file_mb,
+            )
+            synced_count += 1
+        except Exception as e:
+            logger.warning(f"Erro ao catalogar arquivo {pf.name} no DuckDB: {e}")
+
+    logger.info(f"Sincronização DuckDB concluída: {synced_count} nós de reanálise indexados.")
+    return synced_count

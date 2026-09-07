@@ -24,11 +24,23 @@ from src.api.schemas.reanalysis import (
     NodesResponse,
     SubstationGeo,
 )
-from src.core.config import settings
 from src.core.grid_math import get_era5_bounding_nodes, get_merra2_bounding_nodes
+from src.database.reanalysis_catalog import (
+    is_node_cached_in_db,
+    list_all_downloaded_nodes,
+    sync_reanalysis_disk_to_duckdb,
+)
 from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y_date_range
-from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
-from src.etl.merra2_client import fetch_and_cache_merra2, get_merra2_cache_path, load_merra2_series
+from src.etl.era5_client import (
+    fetch_and_cache_era5,
+    find_existing_era5_file,
+    load_era5_series,
+)
+from src.etl.merra2_client import (
+    fetch_and_cache_merra2,
+    find_existing_merra2_file,
+    load_merra2_series,
+)
 from src.etl.ons_catalog import get_ensemble_details
 from src.etl.ons_eol_detail import (
     fetch_ensemble_measured_series,
@@ -46,11 +58,10 @@ def _build_nodes_for_coords(lat: float, lon: float) -> tuple[list[NodeModel], li
     era5_models = []
     for n in era5_math_nodes:
         node_id = f"ERA5-{n.position}"
-        era5_pattern = f"era5_*_{n.latitude:.4f}_{n.longitude:.4f}_*.parquet"
+        # Reconhecimento canônico: banco DuckDB + varredura de arquivos no disco
         cached = (
-            get_era5_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
-            or get_era5_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
-            or len(list(settings.REANALYSIS_DIR.glob(era5_pattern))) > 0
+            is_node_cached_in_db("ERA5", n.latitude, n.longitude)
+            or find_existing_era5_file(n.latitude, n.longitude) is not None
         )
         era5_models.append(
             NodeModel(
@@ -71,11 +82,10 @@ def _build_nodes_for_coords(lat: float, lon: float) -> tuple[list[NodeModel], li
     merra2_models = []
     for n in merra2_math_nodes:
         node_id = f"MERRA2-{n.position}"
-        merra2_pattern = f"merra2_*_{n.latitude:.4f}_{n.longitude:.4f}_*.parquet"
+        # Reconhecimento canônico: banco DuckDB + varredura de arquivos no disco
         cached = (
-            get_merra2_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
-            or get_merra2_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
-            or len(list(settings.REANALYSIS_DIR.glob(merra2_pattern))) > 0
+            is_node_cached_in_db("MERRA-2", n.latitude, n.longitude)
+            or find_existing_merra2_file(n.latitude, n.longitude) is not None
         )
         merra2_models.append(
             NodeModel(
@@ -169,13 +179,22 @@ def trigger_spatial_interpolation(req: InterpolationRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/catalog")
+def get_downloaded_nodes_catalog():
+    """Retorna o catálogo DuckDB completo de nós de reanálise persistidos no banco de dados."""
+    sync_reanalysis_disk_to_duckdb()
+    return list_all_downloaded_nodes()
+
+
 @router.post("/download", response_model=DownloadResponse)
 def trigger_download(req: DownloadRequest):
     """Baixa ou carrega do cache a série temporal histórica para o nó ou modelo selecionado."""
     try:
         if req.model == "ERA5":
-            cache_file = get_era5_cache_path(req.node_id, req.latitude, req.longitude, req.start_year, req.end_year)
-            is_cached = cache_file.exists() and not req.force
+            already_cached = (
+                is_node_cached_in_db("ERA5", req.latitude, req.longitude)
+                or find_existing_era5_file(req.latitude, req.longitude) is not None
+            )
             path = fetch_and_cache_era5(
                 node_id=req.node_id,
                 lat=req.latitude,
@@ -185,8 +204,10 @@ def trigger_download(req: DownloadRequest):
                 force=req.force,
             )
         else:
-            cache_file = get_merra2_cache_path(req.node_id, req.latitude, req.longitude, req.start_year, req.end_year)
-            is_cached = cache_file.exists() and not req.force
+            already_cached = (
+                is_node_cached_in_db("MERRA-2", req.latitude, req.longitude)
+                or find_existing_merra2_file(req.latitude, req.longitude) is not None
+            )
             path = fetch_and_cache_merra2(
                 node_id=req.node_id,
                 lat=req.latitude,
@@ -206,7 +227,7 @@ def trigger_download(req: DownloadRequest):
             model=req.model,
             records_count=records,
             file_size_mb=size_mb,
-            cached=is_cached,
+            cached=already_cached and not req.force,
             message=f"Série {req.model} obtida com sucesso: {records} horas ({size_mb} MB)",
         )
     except Exception as e:
