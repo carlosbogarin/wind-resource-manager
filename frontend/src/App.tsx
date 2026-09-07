@@ -71,11 +71,15 @@ export const App: React.FC = () => {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null);
   const [selectedIdOns, setSelectedIdOns] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<ReanalysisNode | null>(null);
-  const [startYear, setStartYear] = useState<number>(1994);
-  const [endYear, setEndYear] = useState<number>(2024);
+  const [startPeriod, setStartPeriod] = useState<string>('1996-08');
+  const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
   const [activeTab, setActiveTab] = useState<'timeseries' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
+
+  // Anos inteiros derivados para carregamento de arquivos e queries base
+  const startYear = parseInt(startPeriod.split('-')[0]) || 1996;
+  const endYear = parseInt(endPeriod.split('-')[0]) || 2026;
 
   // 3.1. Fetch Dynamically Synchronized 30-Year Date Range (Emparelhamento ERA5 e MERRA-2)
   const { data: dateRangeData } = useQuery({
@@ -84,11 +88,15 @@ export const App: React.FC = () => {
     staleTime: 1000 * 60 * 60 * 6, // 6 horas em cache
   });
 
-  // Auto-sincroniza startYear e endYear quando os dados de emparelhamento chegarem
+  // Auto-sincroniza startPeriod e endPeriod quando os dados de emparelhamento chegarem
   useEffect(() => {
     if (dateRangeData) {
-      setStartYear(dateRangeData.start_year);
-      setEndYear(dateRangeData.end_year);
+      if (dateRangeData.start_year_month) {
+        setStartPeriod(dateRangeData.start_year_month);
+      }
+      if (dateRangeData.end_year_month) {
+        setEndPeriod(dateRangeData.end_year_month);
+      }
     }
   }, [dateRangeData]);
 
@@ -159,7 +167,7 @@ export const App: React.FC = () => {
   const handleDownloadNode = (node: ReanalysisNode) => {
     setNotification({
       type: 'info',
-      text: `Iniciando download sob demanda para o nó ${node.node_id} (${node.model}, ${startYear}-${endYear})...`,
+      text: `Iniciando download sob demanda para o nó ${node.node_id} (${node.model}, ${startPeriod} a ${endPeriod})...`,
     });
     downloadMutation.mutate({
       node_id: node.node_id,
@@ -168,6 +176,8 @@ export const App: React.FC = () => {
       longitude: node.longitude,
       start_year: startYear,
       end_year: endYear,
+      start_month: startPeriod,
+      end_month: endPeriod,
       force: false,
     });
   };
@@ -188,6 +198,8 @@ export const App: React.FC = () => {
           longitude: node.longitude,
           start_year: startYear,
           end_year: endYear,
+          start_month: startPeriod,
+          end_month: endPeriod,
           force: false,
         });
       } catch (err: any) {
@@ -211,8 +223,8 @@ export const App: React.FC = () => {
       selectedNode?.model,
       selectedNode?.latitude,
       selectedNode?.longitude,
-      startYear,
-      endYear,
+      startPeriod,
+      endPeriod,
       aggregation,
     ],
     queryFn: () =>
@@ -224,6 +236,8 @@ export const App: React.FC = () => {
             longitude: selectedNode.longitude,
             start_year: startYear,
             end_year: endYear,
+            start_month: startPeriod,
+            end_month: endPeriod,
             aggregation,
           })
         : Promise.resolve(null),
@@ -239,8 +253,8 @@ export const App: React.FC = () => {
       selectedNode?.latitude,
       selectedNode?.longitude,
       selectedIdOns,
-      startYear,
-      endYear,
+      startPeriod,
+      endPeriod,
     ],
     queryFn: () =>
       selectedNode
@@ -252,6 +266,8 @@ export const App: React.FC = () => {
             id_ons: selectedIdOns || undefined,
             start_year: startYear,
             end_year: endYear,
+            start_month: startPeriod,
+            end_month: endPeriod,
           })
         : Promise.resolve(null),
     enabled: !!selectedNode,
@@ -349,20 +365,29 @@ export const App: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span>Período (30 Anos)</span>
+                      <span>
+                        Período ({(() => {
+                          const [sy, sm] = startPeriod.split('-').map(Number);
+                          const [ey, em] = endPeriod.split('-').map(Number);
+                          if (!sy || !ey) return '30 Anos';
+                          const months = (ey - sy) * 12 + ((em || 8) - (sm || 8));
+                          const y = Math.round((months / 12) * 10) / 10;
+                          return `${y} Anos`;
+                        })()})
+                      </span>
                     </label>
                     <button
                       type="button"
                       onClick={() => {
                         if (dateRangeData) {
-                          setStartYear(dateRangeData.start_year);
-                          setEndYear(dateRangeData.end_year);
+                          setStartPeriod(dateRangeData.start_year_month);
+                          setEndPeriod(dateRangeData.end_year_month);
                         } else {
-                          setStartYear(1996);
-                          setEndYear(2026);
+                          setStartPeriod('1996-08');
+                          setEndPeriod('2026-08');
                         }
                       }}
-                      title="Restaurar período dinâmico emparelhado (30 anos)"
+                      title="Restaurar período emparelhado padrão de 30 anos (ano-mês)"
                       className={`p-1 rounded-md border text-[11px] flex items-center gap-1 transition-all ${
                         isLight
                           ? 'border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
@@ -378,23 +403,25 @@ export const App: React.FC = () => {
                     isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
                   }`}>
                     <input
-                      type="number"
-                      min={1980}
-                      max={2026}
-                      value={startYear}
-                      onChange={(e) => setStartYear(parseInt(e.target.value) || 1996)}
-                      className={`w-20 border rounded-lg px-2 py-1 text-center font-mono text-xs font-semibold ${
+                      type="text"
+                      maxLength={7}
+                      placeholder="AAAA-MM"
+                      value={startPeriod}
+                      onChange={(e) => setStartPeriod(e.target.value)}
+                      title="Mês inicial (Formato AAAA-MM)"
+                      className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
                         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
                       }`}
                     />
                     <span className="text-zinc-400 font-bold text-xs">até</span>
                     <input
-                      type="number"
-                      min={1980}
-                      max={2026}
-                      value={endYear}
-                      onChange={(e) => setEndYear(parseInt(e.target.value) || 2026)}
-                      className={`w-20 border rounded-lg px-2 py-1 text-center font-mono text-xs font-semibold ${
+                      type="text"
+                      maxLength={7}
+                      placeholder="AAAA-MM"
+                      value={endPeriod}
+                      onChange={(e) => setEndPeriod(e.target.value)}
+                      title="Mês final (Formato AAAA-MM)"
+                      className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
                         isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
                       }`}
                     />
@@ -407,7 +434,7 @@ export const App: React.FC = () => {
                     >
                       <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
                       <span className="truncate">
-                        Emparelhado: Ref {dateRangeData.limiting_model} ({dateRangeData.end_year})
+                        Emparelhado: Ref {dateRangeData.limiting_model} ({dateRangeData.end_year_month || dateRangeData.end_year})
                       </span>
                     </div>
                   )}
@@ -474,6 +501,8 @@ export const App: React.FC = () => {
                   longitude={selectedNode.longitude}
                   startYear={startYear}
                   endYear={endYear}
+                  startPeriod={startPeriod}
+                  endPeriod={endPeriod}
                   isCached={selectedNode.is_cached}
                 />
               )}
@@ -647,6 +676,8 @@ export const App: React.FC = () => {
               selectedNode={selectedNode}
               startYear={startYear}
               endYear={endYear}
+              startPeriod={startPeriod}
+              endPeriod={endPeriod}
               theme={theme}
             />
           )}

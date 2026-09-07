@@ -6,6 +6,20 @@ e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
 ---
 
+## [1.3.0] - 2026-09-07
+
+### ✨ Adicionado & Melhorado
+- **Precisão Mensal (Formato Ano-Mês: AAAA-MM)**:
+  - O seletor de período agora exibe e permite manipulação no formato **Ano-Mês** (ex: `1996-08` até `2026-08`), abandonando a simplificação estrita de anos-calendário fechados.
+  - Como acervos de reanálise são publicados continuamente mês a mês (raramente coincidindo com 31 de dezembro), a janela de 30 anos agora calcula exatamente **360 meses emparelhados** a partir do mês limite disponível.
+  - Implementada a função [`filter_df_by_period`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/date_range_checker.py) no backend para recorte exato por timestamp nas séries temporais, gráficos e estatísticas de Weibull/Rosa dos Ventos.
+  - Adicionado suporte a `start_month` e `end_month` em todas as rotas da API (`/api/reanalysis/timeseries`, `/api/reanalysis/analytics`, `/api/reanalysis/download`, `/api/export/csv`).
+  - No frontend, os inputs de período utilizam formato `AAAA-MM` com largura proporcional, validação de caracteres e restauração do período padrão com cálculo dinâmico da quantidade de anos (`{y} Anos`).
+  - Indicador do modelo balizador atualizado para exibir o mês de referência: `Emparelhado: Ref MERRA-2 (2026-08)`.
+  - Exportação e Dossiê sincronizados com a janela exata de meses selecionada.
+
+---
+
 ## [1.2.0] - 2026-09-07
 
 ### ✨ Adicionado & Melhorado

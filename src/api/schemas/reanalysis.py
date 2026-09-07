@@ -40,6 +40,8 @@ class DateRangeResponse(BaseModel):
     common_start_date: str
     start_year: int
     end_year: int
+    start_year_month: str
+    end_year_month: str
     total_years: int
     limiting_model: str
     explanation: str
@@ -52,7 +54,10 @@ class DownloadRequest(BaseModel):
     longitude: float
     start_year: int = Field(default=1994, ge=1980, le=2026)
     end_year: int = Field(default=2024, ge=1980, le=2026)
+    start_month: str | None = Field(default=None, description="Mês inicial no formato AAAA-MM")
+    end_month: str | None = Field(default=None, description="Mês final no formato AAAA-MM")
     force: bool = Field(default=False)
+
 
 
 class DownloadResponse(BaseModel):

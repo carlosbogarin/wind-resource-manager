@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
+from src.etl.date_range_checker import filter_df_by_period
 from src.etl.era5_client import get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import get_merra2_cache_path, load_merra2_series
 
@@ -21,6 +22,8 @@ def export_csv(
     longitude: float = Query(...),
     start_year: int = Query(default=1994),
     end_year: int = Query(default=2024),
+    start_month: str | None = Query(default=None, description="Formato AAAA-MM"),
+    end_month: str | None = Query(default=None, description="Formato AAAA-MM"),
 ):
     """Exporta a série temporal horária completa em formato CSV."""
     try:
@@ -29,11 +32,14 @@ def export_csv(
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
 
+        df = filter_df_by_period(df, start_month, end_month)
+
         buffer = io.BytesIO()
         df.write_csv(buffer)
         buffer.seek(0)
 
-        filename = f"{model}_{node_id}_{start_year}_{end_year}.csv"
+        suffix = f"{start_month}_{end_month}" if start_month and end_month else f"{start_year}_{end_year}"
+        filename = f"{model}_{node_id}_{suffix}.csv"
         return StreamingResponse(
             buffer,
             media_type="text/csv",
@@ -42,6 +48,7 @@ def export_csv(
     except Exception as e:
         logger.error(f"Erro ao exportar CSV: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 
 @router.get("/parquet")

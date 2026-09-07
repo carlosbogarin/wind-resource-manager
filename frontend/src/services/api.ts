@@ -56,6 +56,8 @@ export interface DownloadParams {
   longitude: number;
   start_year: number;
   end_year: number;
+  start_month?: string;
+  end_month?: string;
   force?: boolean;
 }
 
@@ -71,6 +73,8 @@ export interface TimeSeriesParams {
   longitude: number;
   start_year?: number;
   end_year?: number;
+  start_month?: string;
+  end_month?: string;
   aggregation?: 'hourly' | 'daily' | 'monthly';
 }
 
@@ -89,6 +93,8 @@ export interface AnalyticsParams {
   id_ons?: string;
   start_year?: number;
   end_year?: number;
+  start_month?: string;
+  end_month?: string;
 }
 
 export const fetchAnalytics = async (params: AnalyticsParams): Promise<AnalyticsData> => {
@@ -104,9 +110,11 @@ export const getExportCsvUrl = (params: TimeSeriesParams): string => {
     model: params.model,
     latitude: params.latitude.toString(),
     longitude: params.longitude.toString(),
-    start_year: (params.start_year || 1994).toString(),
-    end_year: (params.end_year || 2024).toString(),
+    start_year: (params.start_year || 1996).toString(),
+    end_year: (params.end_year || 2026).toString(),
   });
+  if (params.start_month) query.set('start_month', params.start_month);
+  if (params.end_month) query.set('end_month', params.end_month);
   return `${API_BASE}/api/export/csv?${query.toString()}`;
 };
 
@@ -116,8 +124,8 @@ export const getExportParquetUrl = (params: TimeSeriesParams): string => {
     model: params.model,
     latitude: params.latitude.toString(),
     longitude: params.longitude.toString(),
-    start_year: (params.start_year || 1994).toString(),
-    end_year: (params.end_year || 2024).toString(),
+    start_year: (params.start_year || 1996).toString(),
+    end_year: (params.end_year || 2026).toString(),
   });
   return `${API_BASE}/api/export/parquet?${query.toString()}`;
 };

@@ -66,6 +66,8 @@ export interface DateRangeInfo {
   common_start_date: string;
   start_year: number;
   end_year: number;
+  start_year_month: string;
+  end_year_month: string;
   total_years: number;
   limiting_model: string;
   explanation: string;

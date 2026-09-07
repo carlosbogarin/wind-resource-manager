@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { FileSpreadsheet, FileDown, Calendar } from 'lucide-react';
 import { getExportCsvUrl, getExportParquetUrl } from '../services/api';
 
@@ -9,6 +9,8 @@ interface ExportToolbarProps {
   longitude: number;
   startYear: number;
   endYear: number;
+  startPeriod?: string;
+  endPeriod?: string;
   isCached: boolean;
 }
 
@@ -19,6 +21,8 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
   longitude,
   startYear,
   endYear,
+  startPeriod,
+  endPeriod,
   isCached,
 }) => {
   const params = {
@@ -28,6 +32,8 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
     longitude,
     start_year: startYear,
     end_year: endYear,
+    start_month: startPeriod,
+    end_month: endPeriod,
   };
 
   const csvUrl = getExportCsvUrl(params);
@@ -37,7 +43,7 @@ export const ExportToolbar: React.FC<ExportToolbarProps> = ({
     <div className="flex flex-wrap items-center justify-between gap-3 bg-zinc-900 border border-zinc-800 rounded-xl p-3.5 text-xs">
       <div className="flex items-center gap-2 text-zinc-400">
         <Calendar className="w-4 h-4 text-cyan-400" />
-        <span>Período Histórico: <strong>{startYear} - {endYear}</strong> ({endYear - startYear + 1} anos)</span>
+        <span>Período Histórico: <strong className="text-zinc-200">{startPeriod || startYear} até {endPeriod || endYear}</strong></span>
         <span className="text-zinc-600">•</span>
         <span>Nó: <strong className="text-white">{selectedNodeId}</strong> ({model})</span>
       </div>

@@ -18,7 +18,7 @@ from src.api.schemas.reanalysis import (
     SubstationGeo,
 )
 from src.core.grid_math import get_era5_bounding_nodes, get_merra2_bounding_nodes
-from src.etl.date_range_checker import get_synchronized_30y_date_range
+from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y_date_range
 from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import fetch_and_cache_merra2, get_merra2_cache_path, load_merra2_series
 from src.etl.ons_catalog import get_ensemble_details
@@ -28,21 +28,18 @@ router = APIRouter(prefix="/reanalysis", tags=["Reanálise ERA5 & MERRA-2"])
 
 
 @router.get("/date-range", response_model=DateRangeResponse)
-def get_date_range(force: bool = Query(default=False)):
-    """Verifica a data mais recente disponível entre ERA5 e MERRA-2 e emparelha os últimos 30 anos."""
-    try:
-        return get_synchronized_30y_date_range(force_refresh=force)
-    except Exception as e:
-        logger.error(f"Erro ao verificar intervalo de datas emparelhado: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+def get_reanalysis_date_range(force: bool = False):
+    """Retorna o intervalo sincronizado de 30 anos baseado no modelo mais desatualizado entre ERA5 e MERRA-2."""
+    data = get_synchronized_30y_date_range(force_refresh=force)
+    return DateRangeResponse(**data)
 
 
 @router.get("/nodes", response_model=NodesResponse)
-def get_nodes_for_ensemble(id_ons: str = Query(..., description="Identificador ONS do conjunto")):
-    """Identifica as coordenadas da SE Coletora e calcula os 4 nós mais próximos das malhas ERA5 e MERRA-2."""
+def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto eólico ONS")):
+    """Calcula a SE Coletora e os 4 nós mais próximos de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°)."""
     det = get_ensemble_details(id_ons)
     if not det:
-        raise HTTPException(status_code=404, detail=f"Conjunto eólico '{id_ons}' não encontrado")
+        raise HTTPException(status_code=404, detail=f"Conjunto eólico '{id_ons}' não encontrado.")
 
     lat = det["latitude"]
     lon = det["longitude"]
@@ -156,6 +153,8 @@ def get_timeseries_data(
     longitude: float = Query(...),
     start_year: int = Query(default=1994),
     end_year: int = Query(default=2024),
+    start_month: str | None = Query(default=None, description="Formato AAAA-MM"),
+    end_month: str | None = Query(default=None, description="Formato AAAA-MM"),
     aggregation: str = Query(default="daily", pattern="^(hourly|daily|monthly)$"),
 ):
     """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts."""
@@ -164,6 +163,9 @@ def get_timeseries_data(
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        # Filtrar por janela ano-mês se fornecida
+        df = filter_df_by_period(df, start_month, end_month)
 
         if aggregation == "hourly":
             # Para visualização rápida se a janela for curta
@@ -254,15 +256,23 @@ def get_analytics(
     id_ons: str = Query(default=""),
     start_year: int = Query(default=1994),
     end_year: int = Query(default=2024),
+    start_month: str | None = Query(default=None, description="Formato AAAA-MM"),
+    end_month: str | None = Query(default=None, description="Formato AAAA-MM"),
 ):
     """Calcula estatísticas de Weibull, Rosa dos Ventos, Perfil Diurno e correlação com FC do ONS."""
     try:
         if model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
+        else:
+            df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        # Filtrar por janela ano-mês se fornecida
+        df = filter_df_by_period(df, start_month, end_month)
+
+        if model == "ERA5":
             speeds = df["wind_speed_100m"].to_numpy()
             directions = df["wind_direction_100m"].to_numpy()
         else:
-            df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
             speeds = df["wind_speed_100m"].to_numpy()
             directions = df["wind_direction_50m"].to_numpy()
 

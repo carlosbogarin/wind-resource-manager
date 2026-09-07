@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import logging
@@ -121,11 +121,17 @@ def get_synchronized_30y_date_range(force_refresh: bool = False) -> dict[str, An
         limiting_model = "MERRA-2"
 
     # 30 anos retroativos exatos a partir da data de referência emparelhada
-    common_start = common_end.replace(year=common_end.year - 30)
+    try:
+        common_start = common_end.replace(year=common_end.year - 30)
+    except ValueError:
+        # Ajuste para ano bissexto (ex: 29 de fevereiro)
+        common_start = common_end.replace(year=common_end.year - 30, day=28)
 
-    # Anos inteiros para seleção de série histórica
+    # Anos e meses formatados para seleção precisa (não apenas anos-calendário fechados)
     end_year = common_end.year
     start_year = end_year - 30
+    start_year_month = common_start.strftime("%Y-%m")
+    end_year_month = common_end.strftime("%Y-%m")
 
     result = {
         "era5_latest_date": era5_date.strftime("%Y-%m-%d"),
@@ -134,12 +140,14 @@ def get_synchronized_30y_date_range(force_refresh: bool = False) -> dict[str, An
         "common_start_date": common_start.strftime("%Y-%m-%d"),
         "start_year": start_year,
         "end_year": end_year,
+        "start_year_month": start_year_month,
+        "end_year_month": end_year_month,
         "total_years": 30,
         "limiting_model": limiting_model,
         "explanation": (
-            f"Emparelhado pelo modelo mais desatualizado ({limiting_model}: {common_end.strftime('%d/%m/%Y')}). "
-            f"ERA5 até {era5_date.strftime('%d/%m/%Y')} | MERRA-2 até {merra2_date.strftime('%d/%m/%Y')}. "
-            f"Janela de 30 anos sincronizada: {start_year} a {end_year}."
+            f"Emparelhado pelo modelo mais defasado ({limiting_model}: {end_year_month}). "
+            f"ERA5 até {era5_date.strftime('%Y-%m')} | MERRA-2 até {merra2_date.strftime('%Y-%m')}. "
+            f"Janela de 30 anos sincronizada: {start_year_month} até {end_year_month}."
         ),
     }
 
@@ -147,3 +155,39 @@ def get_synchronized_30y_date_range(force_refresh: bool = False) -> dict[str, An
     _last_check_time = now_ts
     logger.info(f"Intervalo de 30 anos emparelhado calculado com sucesso: {result['explanation']}")
     return result
+
+
+def filter_df_by_period(
+    df: Any,
+    start_month: str | None = None,
+    end_month: str | None = None,
+) -> Any:
+    """Filtra um DataFrame Polars por janela ano-mês exata (ex: '1996-08' a '2026-08')."""
+    import polars as pl
+
+    if not isinstance(df, pl.DataFrame) or len(df) == 0:
+        return df
+
+    filtered = df
+
+    if start_month:
+        try:
+            start_dt = datetime.strptime(f"{start_month}-01", "%Y-%m-%d")
+            filtered = filtered.filter(pl.col("timestamp") >= start_dt)
+        except Exception as e:
+            logger.warning(f"Não foi possível aplicar filtro de início ({start_month}): {e}")
+
+    if end_month:
+        try:
+            parts = end_month.split("-")
+            yr, mo = int(parts[0]), int(parts[1])
+            if mo == 12:
+                next_month_dt = datetime(yr + 1, 1, 1)
+            else:
+                next_month_dt = datetime(yr, mo + 1, 1)
+            filtered = filtered.filter(pl.col("timestamp") < next_month_dt)
+        except Exception as e:
+            logger.warning(f"Não foi possível aplicar filtro de fim ({end_month}): {e}")
+
+    return filtered
+

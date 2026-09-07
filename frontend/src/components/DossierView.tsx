@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { FileSpreadsheet, FileDown, Wind, MapPin, Building2, Zap, CheckCircle2 } from 'lucide-react';
 import { Ensemble, ReanalysisNode } from '../types';
 import { getExportCsvUrl, getExportParquetUrl } from '../services/api';
@@ -9,6 +9,8 @@ interface DossierViewProps {
   selectedNode: ReanalysisNode | null;
   startYear: number;
   endYear: number;
+  startPeriod?: string;
+  endPeriod?: string;
   theme?: 'light' | 'dark';
 }
 
@@ -18,6 +20,8 @@ export const DossierView: React.FC<DossierViewProps> = ({
   selectedNode,
   startYear,
   endYear,
+  startPeriod,
+  endPeriod,
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
@@ -40,6 +44,8 @@ export const DossierView: React.FC<DossierViewProps> = ({
         longitude: selectedNode.longitude,
         start_year: startYear,
         end_year: endYear,
+        start_month: startPeriod,
+        end_month: endPeriod,
       }
     : null;
 
@@ -105,7 +111,7 @@ export const DossierView: React.FC<DossierViewProps> = ({
           <div>
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Exportação da Série Histórica (30 Anos)</h3>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-              Nó ativo: <strong>{selectedNode?.node_id || 'ERA5-NW'}</strong> ({selectedNode?.model || 'ERA5'}) • Período: {startYear} a {endYear}
+              Nó ativo: <strong>{selectedNode?.node_id || 'ERA5-NW'}</strong> ({selectedNode?.model || 'ERA5'}) • Período: {startPeriod || startYear} a {endPeriod || endYear}
             </p>
           </div>
           {selectedNode?.is_cached && (

@@ -155,11 +155,17 @@ def test_catalog_and_api():
 
 
 def test_dynamic_date_range():
-    from src.etl.date_range_checker import get_synchronized_30y_date_range
+    import polars as pl
 
-    date_range = get_synchronized_30y_date_range()
+    from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y_date_range
+
+    date_range = get_synchronized_30y_date_range(force_refresh=True)
     assert "start_year" in date_range
     assert "end_year" in date_range
+    assert "start_year_month" in date_range
+    assert "end_year_month" in date_range
+    assert len(date_range["start_year_month"]) == 7  # YYYY-MM
+    assert len(date_range["end_year_month"]) == 7  # YYYY-MM
     assert date_range["end_year"] - date_range["start_year"] == 30
     assert date_range["limiting_model"] in ["ERA5", "MERRA-2"]
 
@@ -170,6 +176,24 @@ def test_dynamic_date_range():
     assert data["total_years"] == 30
     assert data["start_year"] == date_range["start_year"]
     assert data["end_year"] == date_range["end_year"]
+    assert data["start_year_month"] == date_range["start_year_month"]
+    assert data["end_year_month"] == date_range["end_year_month"]
     assert "limiting_model" in data
     assert "explanation" in data
+
+    # Testar filter_df_by_period
+    sample_df = pl.DataFrame(
+        {
+            "timestamp": pl.datetime_range(
+                start=pl.datetime(1996, 1, 1),
+                end=pl.datetime(2026, 12, 31),
+                interval="1mo",
+                eager=True,
+            ),
+            "wind_speed_100m": [8.0] * 372,
+        }
+    )
+    filtered = filter_df_by_period(sample_df, "1996-08", "2026-08")
+    assert len(filtered) == 361  # De agosto de 1996 até agosto de 2026 inclusive
+
 
