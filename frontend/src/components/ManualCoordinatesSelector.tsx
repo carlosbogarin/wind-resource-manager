@@ -54,14 +54,6 @@ export const ManualCoordinatesSelector: React.FC<ManualCoordinatesSelectorProps>
     }
   };
 
-  const handlePreset = (lat: number, lon: number, name: string) => {
-    setInputLat(lat.toString());
-    setInputLon(lon.toString());
-    setInputName(name);
-    onChangeCoordinates(lat, lon, name);
-    onSearchNodes();
-  };
-
   const isLight = theme === 'light';
 
   return (
@@ -154,45 +146,8 @@ export const ManualCoordinatesSelector: React.FC<ManualCoordinatesSelectorProps>
           </div>
         </div>
 
-        {/* Action Button & Presets */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-            <span className="text-slate-500 dark:text-zinc-400 font-medium">Exemplos:</span>
-            <button
-              type="button"
-              onClick={() => handlePreset(-14.1028, -42.6094, 'Caetité (BA)')}
-              className={`px-2 py-1 rounded-lg border text-xs transition-colors ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                  : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300'
-              }`}
-            >
-              Caetité (BA)
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePreset(-5.1500, -36.6000, 'Costa Branca (RN)')}
-              className={`px-2 py-1 rounded-lg border text-xs transition-colors ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                  : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300'
-              }`}
-            >
-              Costa Branca (RN)
-            </button>
-            <button
-              type="button"
-              onClick={() => handlePreset(-33.7000, -53.3500, 'Chuí (RS)')}
-              className={`px-2 py-1 rounded-lg border text-xs transition-colors ${
-                isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-700'
-                  : 'bg-zinc-800 hover:bg-zinc-700 border-zinc-700 text-zinc-300'
-              }`}
-            >
-              Chuí (RS)
-            </button>
-          </div>
-
+        {/* Action Button */}
+        <div className="flex items-center justify-end gap-2 pt-1">
           <button
             type="submit"
             disabled={isLoading}

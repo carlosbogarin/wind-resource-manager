@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { SubstationGeo, ReanalysisNode } from '../types';
-import { Layers, Map as MapIcon } from 'lucide-react';
+import { Layers, Map as MapIcon, Search, Loader2, X, MapPin } from 'lucide-react';
 
 interface MapViewProps {
   substation: SubstationGeo | null;
@@ -9,7 +9,7 @@ interface MapViewProps {
   merra2Nodes: ReanalysisNode[];
   selectedNodeId: string | null;
   onSelectNode: (node: ReanalysisNode) => void;
-  onMapClick?: (lat: number, lon: number) => void;
+  onMapClick?: (lat: number, lon: number, placeName?: string) => void;
   theme?: 'light' | 'dark';
 }
 
@@ -30,6 +30,119 @@ export const MapView: React.FC<MapViewProps> = ({
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
 
   const [activeTileLayer, setActiveTileLayer] = useState<MapLayerType>(theme === 'dark' ? 'dark' : 'osm');
+
+  // Search by location state (Nominatim geocoding)
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [showResults, setShowResults] = useState<boolean>(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const isLight = theme === 'light';
+  const isManual = substation?.id_ons === 'MANUAL';
+
+  // Listen for outside clicks to close search dropdown
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setShowResults(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, []);
+
+  const handleSearch = async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed || trimmed.length < 2) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+          trimmed
+        )}&countrycodes=br&limit=6&addressdetails=1`,
+        {
+          headers: {
+            'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+          },
+        }
+      );
+      if (response.ok) {
+        const data = await response.json();
+        setSearchResults(data);
+        setShowResults(true);
+      }
+    } catch (err) {
+      console.error('Erro na busca de locais:', err);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setSearchQuery(val);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    if (!val.trim()) {
+      setSearchResults([]);
+      setShowResults(false);
+      return;
+    }
+    searchTimeoutRef.current = setTimeout(() => {
+      handleSearch(val);
+    }, 400);
+  };
+
+  const handleSelectLocation = (item: any) => {
+    const lat = parseFloat(item.lat);
+    const lon = parseFloat(item.lon);
+    if (isNaN(lat) || isNaN(lon)) return;
+
+    const parts = item.display_name.split(',').map((s: string) => s.trim());
+    const mainName = item.name || parts[0];
+    const stateName = parts.length > 2 ? parts[parts.length - 3] || parts[1] : parts[1] || '';
+    const friendlyName = stateName && stateName !== mainName ? `${mainName} (${stateName})` : mainName;
+
+    setSearchQuery(friendlyName);
+    setShowResults(false);
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([lat, lon], 10, { animate: true, duration: 1.2 });
+    }
+
+    if (onMapClick) {
+      onMapClick(Number(lat.toFixed(5)), Number(lon.toFixed(5)), friendlyName);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchResults.length > 0) {
+        handleSelectLocation(searchResults[0]);
+      } else if (searchQuery.trim().length >= 2) {
+        handleSearch(searchQuery);
+      }
+    } else if (e.key === 'Escape') {
+      setShowResults(false);
+    }
+  };
+
+  const handleClear = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowResults(false);
+  };
 
   // Sync activeTileLayer if theme prop changes and user hasn't explicitly chosen satellite
   useEffect(() => {
@@ -297,6 +410,97 @@ export const MapView: React.FC<MapViewProps> = ({
     <div className="relative z-0 w-full h-[460px] rounded-2xl overflow-hidden border border-slate-200 dark:border-zinc-800 shadow-xl bg-slate-100 dark:bg-zinc-950">
       <div ref={mapContainerRef} className="w-full h-full" />
 
+      {/* Location Search Bar with Lupinha (OpenStreetMap Nominatim Geocoding) */}
+      <div
+        ref={searchContainerRef}
+        className="absolute top-3.5 left-14 z-[20] w-64 sm:w-80"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+      >
+        <div
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border shadow-lg backdrop-blur-md transition-all ${
+            isLight
+              ? 'bg-white/95 border-slate-300 shadow-slate-300/40 text-slate-800 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-400/20'
+              : 'bg-zinc-900/95 border-zinc-700/80 shadow-black/50 text-zinc-100 focus-within:border-cyan-500 focus-within:ring-2 focus-within:ring-cyan-500/20'
+          }`}
+        >
+          {isSearching ? (
+            <Loader2 className="w-4 h-4 text-cyan-500 animate-spin flex-shrink-0" />
+          ) : (
+            <Search className="w-4 h-4 text-slate-400 dark:text-zinc-400 flex-shrink-0" />
+          )}
+
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={handleQueryChange}
+            onKeyDown={handleKeyDown}
+            onFocus={() => {
+              if (searchResults.length > 0) setShowResults(true);
+            }}
+            placeholder="Buscar cidade, estado..."
+            className="w-full bg-transparent text-xs outline-none placeholder:text-slate-400 dark:placeholder:text-zinc-500"
+          />
+
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-zinc-200 transition-colors p-0.5"
+              title="Limpar busca"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Dropdown Suggestions */}
+        {showResults && searchResults.length > 0 && (
+          <div
+            className={`mt-1.5 w-full rounded-xl border shadow-2xl max-h-60 overflow-y-auto py-1 text-xs backdrop-blur-md ${
+              isLight
+                ? 'bg-white/98 border-slate-200 divide-y divide-slate-100 shadow-slate-400/30'
+                : 'bg-zinc-900/98 border-zinc-700/90 divide-y divide-zinc-800 shadow-black/70'
+            }`}
+          >
+            {searchResults.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSelectLocation(item)}
+                className={`w-full text-left px-3 py-2 flex items-start gap-2.5 transition-colors ${
+                  isLight
+                    ? 'hover:bg-cyan-50 text-slate-800'
+                    : 'hover:bg-zinc-800/80 text-zinc-200'
+                }`}
+              >
+                <MapPin className="w-3.5 h-3.5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold truncate text-xs">
+                    {item.name || item.display_name.split(',')[0]}
+                  </div>
+                  <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                    {item.display_name}
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {showResults && !isSearching && searchResults.length === 0 && searchQuery.trim().length >= 2 && (
+          <div
+            className={`mt-1.5 w-full rounded-xl border p-2.5 text-center text-xs shadow-xl ${
+              isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-zinc-900 border-zinc-700 text-zinc-400'
+            }`}
+          >
+            Nenhum local encontrado para "{searchQuery}".
+          </div>
+        )}
+      </div>
+
       {/* Layer Switcher (Top Right - Free OpenStreetMap & Satellite) */}
       <div className="absolute top-4 right-4 z-[20] flex items-center p-1 rounded-xl bg-white/95 dark:bg-zinc-900/90 backdrop-blur-md border border-slate-200 dark:border-zinc-700/80 shadow-lg text-xs">
         <button
@@ -342,8 +546,12 @@ export const MapView: React.FC<MapViewProps> = ({
         <p className="font-semibold text-slate-700 dark:text-zinc-300 tracking-wide text-[11px] uppercase">Legenda da Malha</p>
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-[8px] text-white font-bold">⚡</div>
-            <span className="text-slate-800 dark:text-zinc-300 font-medium">Ponto Alvo / SE Coletora</span>
+            <div className={`w-3.5 h-3.5 rounded-full ${isManual ? 'bg-cyan-600' : 'bg-emerald-500'} border border-white flex items-center justify-center text-[8px] text-white font-bold`}>
+              {isManual ? '📍' : '⚡'}
+            </div>
+            <span className="text-slate-800 dark:text-zinc-300 font-medium">
+              {isManual ? 'Ponto Alvo Manual' : 'SE Coletora (ONS)'}
+            </span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3.5 h-3.5 rounded-full bg-cyan-500 border border-cyan-200"></div>

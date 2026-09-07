@@ -4,12 +4,7 @@ import {
   Globe,
   Compass,
   Layers,
-  Zap,
   ShieldCheck,
-  Cpu,
-  ArrowRight,
-  Wind,
-  CheckCircle2,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -92,7 +87,7 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
                 Extrapolação Espacial Vetorial Horizontal
               </h3>
               <p className="text-xs text-cyan-600 dark:text-cyan-400 font-medium">
-                Metodologia Padrão Mundial (Vortex Factoria de Calculs - Vortex SERIES)
+                Metodologia
               </p>
             </div>
           </div>
@@ -206,39 +201,6 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
               P_sfc(t) = Σ ( w_i * P_sfc_i(t) )<br />
               α(t) &nbsp;&nbsp;&nbsp;&nbsp;= ln( S_100m(t) / S_10m(t) ) / ln( 100 / 10 )
             </div>
-          </div>
-        </div>
-
-        {/* Technical Highlights / Performance Specs */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-          <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-zinc-800'} text-xs space-y-1`}>
-            <div className="flex items-center gap-1.5 font-semibold text-cyan-600 dark:text-cyan-400">
-              <Cpu className="w-3.5 h-3.5" />
-              <span>Vetorização Polars/NumPy</span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Processa as <strong>268.800 horas</strong> (série de 30 anos) em menos de <strong>0,5 segundo</strong>.
-            </p>
-          </div>
-
-          <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-zinc-800'} text-xs space-y-1`}>
-            <div className="flex items-center gap-1.5 font-semibold text-emerald-600 dark:text-emerald-400">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Cache Imutável Parquet</span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Persistido em formato colunar comprimido Snappy com registro automático no DuckDB.
-            </p>
-          </div>
-
-          <div className={`p-3 rounded-xl border ${isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-950 border-zinc-800'} text-xs space-y-1`}>
-            <div className="flex items-center gap-1.5 font-semibold text-amber-600 dark:text-amber-400">
-              <Wind className="w-3.5 h-3.5" />
-              <span>Conexão Modular</span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Alimenta gráficos, Rosa dos Ventos, Weibull, Perfis Sazonais e Dossiê com série sintetizada.
-            </p>
           </div>
         </div>
       </div>

@@ -337,13 +337,16 @@ export const App: React.FC = () => {
     }
   };
 
-  const handleMapClick = (lat: number, lon: number) => {
+  const handleMapClick = (lat: number, lon: number, placeName?: string) => {
     if (isManualModule) {
       setManualLat(lat);
       setManualLon(lon);
+      if (placeName) {
+        setManualSiteName(placeName);
+      }
       setNotification({
         type: 'info',
-        text: `Coordenadas atualizadas pelo mapa: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+        text: `Local selecionado: ${placeName || `${lat.toFixed(4)}, ${lon.toFixed(4)}`}`,
       });
     }
   };
@@ -427,8 +430,15 @@ export const App: React.FC = () => {
     });
   };
 
-  const activeEnsemble = ensembles.find((e) => e.id_ons === selectedIdOns);
+  const activeEnsemble = isManualModule ? undefined : ensembles.find((e) => e.id_ons === selectedIdOns);
   const isLight = theme === 'light';
+
+  // Se estiver em modo manual, garante que abas exclusivas do ONS não fiquem ativas
+  useEffect(() => {
+    if (isManualModule && (activeTab === 'correlation' || activeTab === 'ons')) {
+      setActiveTab('timeseries');
+    }
+  }, [isManualModule, activeTab]);
 
   // 7.1 Fetch Ensemble Plants (Usinas do Complexo ONS)
   const { data: ensemblePlants = ['Média do Conjunto'] } = useQuery({
@@ -558,7 +568,7 @@ export const App: React.FC = () => {
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header without unnecessary pills, with theme toggle */}
         <Header
-          activeEnsembleName={activeEnsemble?.ensemble_name}
+          activeEnsembleName={activeModule === 'reanalysis' ? activeEnsemble?.ensemble_name : undefined}
           theme={theme}
           onToggleTheme={setTheme}
           onToggleSidebar={() => setIsSidebarOpen(true)}
@@ -856,20 +866,22 @@ export const App: React.FC = () => {
                     <span>Série Temporal Completa</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('correlation')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                      activeTab === 'correlation'
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
-                        : isLight
-                        ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-                    }`}
-                  >
-                    <GitCompare className="w-4 h-4" />
-                    <span>Correlação MCP (Reanálise vs Usina)</span>
-                  </button>
+                  {!isManualModule && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('correlation')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                        activeTab === 'correlation'
+                          ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30'
+                          : isLight
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                      }`}
+                    >
+                      <GitCompare className="w-4 h-4" />
+                      <span>Correlação MCP (Reanálise vs Usina)</span>
+                    </button>
+                  )}
 
                   <button
                     type="button"
@@ -901,20 +913,22 @@ export const App: React.FC = () => {
                     <span>Perfis Diurno & Sazonal</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('ons')}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                      activeTab === 'ons'
-                        ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30'
-                        : isLight
-                        ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
-                    }`}
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>Fator de Capacidade Real ONS</span>
-                  </button>
+                  {!isManualModule && (
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('ons')}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                        activeTab === 'ons'
+                          ? 'bg-purple-500/20 text-purple-600 dark:text-purple-300 border border-purple-500/30'
+                          : isLight
+                          ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+                      }`}
+                    >
+                      <Zap className="w-4 h-4" />
+                      <span>Fator de Capacidade Real ONS</span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Tab 1: Time Series Chart */}
