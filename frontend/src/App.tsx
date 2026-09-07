@@ -1072,7 +1072,7 @@ export const App: React.FC = () => {
           isLight ? 'border-slate-200 bg-white text-slate-500' : 'border-zinc-900 bg-zinc-950 text-zinc-500'
         }`}>
           <p>
-            <strong>Wind Resource Manager</strong> • Padrão Ouro para Avaliação de Recurso Eólico no Brasil
+            <strong>Wind Resource Manager</strong> • Avaliação de Recurso Eólico no Brasil
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
             Dados: ONS (Fator de Capacidade & Capacidade de Geração) • ECMWF ERA5 (0.25°) • NASA MERRA-2 (0.5°x0.625°)
