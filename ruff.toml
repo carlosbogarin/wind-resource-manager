@@ -1,0 +1,24 @@
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = [
+    "E",
+    "F",
+    "W",
+    "I",
+    "B",
+    "C4",
+    "UP",
+]
+ignore = [
+    "E501",
+    "B008",
+    "B904",
+    "B905",
+    "W291",
+    "W293",
+]
+
+[lint.isort]
+known-first-party = ["src"]
