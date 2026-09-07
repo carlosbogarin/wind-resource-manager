@@ -2,8 +2,13 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 import ssl
+import threading
+import time
+import urllib.error
 import urllib.request
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +17,9 @@ import polars as pl
 from src.core.config import settings
 
 logger = logging.getLogger("era5_client")
+
+# Lock para sincronizar downloads concorrentes e evitar duplicação de chamadas
+_era5_download_lock = threading.Lock()
 
 
 def _get_ssl_context() -> ssl.SSLContext:
@@ -35,8 +43,9 @@ def fetch_era5_timeseries_chunk(
     lon: float,
     start_date: str,
     end_date: str,
+    max_retries: int = 4,
 ) -> dict[str, Any]:
-    """Busca um bloco de série temporal horária de reanálise ERA5 via Open-Meteo Archive API."""
+    """Busca um bloco de série temporal horária de reanálise ERA5 via Open-Meteo Archive API com retry e backoff em 429."""
     url = (
         f"{settings.OPEN_METEO_ARCHIVE_URL}?"
         f"latitude={lat:.4f}&longitude={lon:.4f}&"
@@ -51,18 +60,53 @@ def fetch_era5_timeseries_chunk(
     )
     ctx = _get_ssl_context()
 
-    with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    for attempt in range(max_retries):
+        try:
+            with urllib.request.urlopen(req, context=ctx, timeout=60) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                return data.get("hourly", {})
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                # Rate limit atingido: aplicar backoff exponencial
+                retry_after_hdr = e.headers.get("Retry-After")
+                if retry_after_hdr and retry_after_hdr.isdigit():
+                    wait_sec = float(retry_after_hdr) + random.uniform(0.5, 1.5)
+                else:
+                    wait_sec = (2 ** (attempt + 1)) + random.uniform(1.0, 3.0)
 
-    return data.get("hourly", {})
+                logger.warning(
+                    f"Open-Meteo Rate Limit 429 ao baixar {start_date} a {end_date}. "
+                    f"Aguardando {wait_sec:.1f}s antes de tentar novamente (tentativa {attempt + 1}/{max_retries})..."
+                )
+                time.sleep(wait_sec)
+                continue
+            elif e.code == 400:
+                # Tratar eventual ajuste fino de data máxima
+                body = e.read().decode("utf-8")
+                logger.error(f"Erro 400 Open-Meteo ({url}): {body}")
+                raise ValueError(f"Requisição inválida Open-Meteo: {body}")
+            else:
+                if attempt < max_retries - 1:
+                    wait_sec = 2.0 * (attempt + 1)
+                    logger.warning(f"Erro HTTP {e.code} ({e.reason}). Tentando novamente em {wait_sec}s...")
+                    time.sleep(wait_sec)
+                    continue
+                raise
+        except Exception as ex:
+            if attempt < max_retries - 1:
+                time.sleep(2.0)
+                continue
+            raise ex
+
+    raise RuntimeError(f"Falha ao obter dados ERA5 para o intervalo {start_date} a {end_date} após {max_retries} tentativas.")
 
 
 def fetch_and_cache_era5(
     node_id: str,
     lat: float,
     lon: float,
-    start_year: int = 1994,
-    end_year: int = 2024,
+    start_year: int = 1996,
+    end_year: int = 2026,
     force: bool = False,
 ) -> Path:
     """Baixa a série temporal histórica de reanálise ERA5 (até 30 anos) e salva em Parquet."""
@@ -72,59 +116,75 @@ def fetch_and_cache_era5(
         logger.info(f"Série ERA5 já em cache: {cache_path}")
         return cache_path
 
-    logger.info(
-        f"Iniciando download da série temporal ERA5 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
-    )
+    with _era5_download_lock:
+        # Checar novamente após adquirir o lock para evitar download duplicado
+        if cache_path.exists() and not force:
+            return cache_path
 
-    # Dividir em blocos de até 5 anos para alta confiabilidade e resiliência de rede
-    chunk_size_years = 5
-    all_dfs: list[pl.DataFrame] = []
-
-    for curr_start in range(start_year, end_year + 1, chunk_size_years):
-        curr_end = min(curr_start + chunk_size_years - 1, end_year)
-        start_date = f"{curr_start}-01-01"
-        end_date = f"{curr_end}-12-31"
-
-        logger.info(f"Baixando bloco ERA5 {start_date} a {end_date}...")
-        hourly_data = fetch_era5_timeseries_chunk(lat, lon, start_date, end_date)
-
-        times = hourly_data.get("time", [])
-        ws100 = hourly_data.get("wind_speed_100m", [])
-        ws10 = hourly_data.get("wind_speed_10m", [])
-        wd100 = hourly_data.get("wind_direction_100m", [])
-        wd10 = hourly_data.get("wind_direction_10m", [])
-        pressure = hourly_data.get("surface_pressure", [])
-        temp = hourly_data.get("temperature_2m", [])
-
-        if not times:
-            continue
-
-        chunk_df = pl.DataFrame(
-            {
-                "timestamp": pl.Series(times, dtype=pl.Utf8).str.to_datetime("%Y-%m-%dT%H:%M"),
-                "wind_speed_100m": pl.Series(ws100, dtype=pl.Float64),
-                "wind_speed_10m": pl.Series(ws10, dtype=pl.Float64),
-                "wind_direction_100m": pl.Series(wd100, dtype=pl.Float64),
-                "wind_direction_10m": pl.Series(wd10, dtype=pl.Float64),
-                "surface_pressure_hpa": pl.Series(pressure, dtype=pl.Float64),
-                "temperature_2m_c": pl.Series(temp, dtype=pl.Float64),
-                "node_id": pl.lit(node_id),
-                "model": pl.lit("ERA5"),
-                "latitude": pl.lit(lat),
-                "longitude": pl.lit(lon),
-            }
+        logger.info(
+            f"Iniciando download da série temporal ERA5 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
         )
-        all_dfs.append(chunk_df)
 
-    if not all_dfs:
-        raise ValueError(f"Nenhum dado retornado para o nó {node_id} ({lat}, {lon})")
+        today_str = datetime.now().strftime("%Y-%m-%d")
 
-    final_df = pl.concat(all_dfs).sort("timestamp")
-    final_df.write_parquet(cache_path)
-    logger.info(
-        f"Série ERA5 salva com sucesso em {cache_path} ({len(final_df)} registros horários, {cache_path.stat().st_size / 1024 / 1024:.2f} MB)"
-    )
-    return cache_path
+        # Blocos de 10 anos: reduz requisições de 7 para 3, mitigando estouro de rate-limit
+        chunk_size_years = 10
+        all_dfs: list[pl.DataFrame] = []
+
+        for curr_start in range(start_year, end_year + 1, chunk_size_years):
+            curr_end = min(curr_start + chunk_size_years - 1, end_year)
+            start_date = f"{curr_start}-01-01"
+            # Nunca solicitar datas futuras além de hoje
+            candidate_end = f"{curr_end}-12-31"
+            end_date = min(candidate_end, today_str)
+
+            if start_date > today_str:
+                break
+
+            logger.info(f"Baixando bloco ERA5 {start_date} a {end_date}...")
+            hourly_data = fetch_era5_timeseries_chunk(lat, lon, start_date, end_date)
+
+            times = hourly_data.get("time", [])
+            ws100 = hourly_data.get("wind_speed_100m", [])
+            ws10 = hourly_data.get("wind_speed_10m", [])
+            wd100 = hourly_data.get("wind_direction_100m", [])
+            wd10 = hourly_data.get("wind_direction_10m", [])
+            pressure = hourly_data.get("surface_pressure", [])
+            temp = hourly_data.get("temperature_2m", [])
+
+            if not times:
+                continue
+
+            n_rows = len(times)
+            chunk_df = pl.DataFrame(
+                {
+                    "timestamp": [datetime.strptime(t, "%Y-%m-%dT%H:%M") for t in times],
+                    "wind_speed_100m": [float(v) if v is not None else 0.0 for v in ws100],
+                    "wind_speed_10m": [float(v) if v is not None else 0.0 for v in ws10],
+                    "wind_direction_100m": [float(v) if v is not None else 0.0 for v in wd100],
+                    "wind_direction_10m": [float(v) if v is not None else 0.0 for v in wd10],
+                    "surface_pressure_hpa": [float(v) if v is not None else 1013.25 for v in pressure],
+                    "temperature_2m_c": [float(v) if v is not None else 25.0 for v in temp],
+                    "node_id": [node_id] * n_rows,
+                    "model": ["ERA5"] * n_rows,
+                    "latitude": [lat] * n_rows,
+                    "longitude": [lon] * n_rows,
+                }
+            )
+            all_dfs.append(chunk_df)
+
+            # Pausa cortês entre blocos para respeitar o rate-limiter da Open-Meteo
+            time.sleep(1.2)
+
+        if not all_dfs:
+            raise ValueError(f"Nenhum dado retornado para o nó {node_id} ({lat}, {lon})")
+
+        final_df = pl.concat(all_dfs).sort("timestamp")
+        final_df.write_parquet(cache_path)
+        logger.info(
+            f"Série ERA5 salva com sucesso em {cache_path} ({len(final_df)} registros horários, {cache_path.stat().st_size / 1024 / 1024:.2f} MB)"
+        )
+        return cache_path
 
 
 def load_era5_series(
@@ -133,9 +193,14 @@ def load_era5_series(
     lon: float,
     start_year: int = 1994,
     end_year: int = 2024,
-) -> pl.DataFrame:
-    """Carrega série temporal do ERA5 a partir do cache Parquet, baixando caso não exista."""
+    auto_fetch: bool = False,
+) -> pl.DataFrame | None:
+    """Carrega série temporal do ERA5 a partir do cache Parquet. Não efetua download automático a menos que solicitado."""
     cache_path = get_era5_cache_path(node_id, lat, lon, start_year, end_year)
     if not cache_path.exists():
-        fetch_and_cache_era5(node_id, lat, lon, start_year, end_year)
+        if auto_fetch:
+            fetch_and_cache_era5(node_id, lat, lon, start_year, end_year)
+        else:
+            return None
     return pl.read_parquet(cache_path)
+

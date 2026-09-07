@@ -197,3 +197,18 @@ def test_dynamic_date_range():
     assert len(filtered) == 361  # De agosto de 1996 até agosto de 2026 inclusive
 
 
+def test_uncached_node_endpoints():
+    client = TestClient(app)
+    r_ts = client.get("/api/reanalysis/timeseries?node_id=ERA5-TEST-UNCACHED&model=ERA5&latitude=-14.0&longitude=-42.0")
+    assert r_ts.status_code == 200
+    data_ts = r_ts.json()
+    assert data_ts["total_points"] == 0
+    assert data_ts["series"] == []
+
+    r_an = client.get("/api/reanalysis/analytics?node_id=ERA5-TEST-UNCACHED&model=ERA5&latitude=-14.0&longitude=-42.0")
+    assert r_an.status_code == 200
+    data_an = r_an.json()
+    assert data_an["total_hours"] == 0
+
+
+

@@ -4,6 +4,15 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.1] - 2026-09-07
+
+### 🐛 Correções & Resiliência
+- **Resolução do Erro HTTP 429 ("Too Many Requests") no Download de Séries Temporais**:
+  - **Fator Causa 1 (Disparos Concorrentes Não Solicitados)**: Os endpoints `/api/reanalysis/timeseries` e `/api/reanalysis/analytics` disparavam automaticamente download em segundo plano quando um nó não estava em cache. Ao clicar simultaneamente no botão de download, múltiplos downloads paralelos eram enviados para a API do Open-Meteo para a mesma coordenada. Ajustado para retornar resposta vazia limpa (HTTP 200) quando o arquivo ainda não existir, reservando o download exclusivamente para a ação explícita do usuário.
+  - **Fator Causa 2 (Otimização de Chunks & Clamping de Datas Futuras)**: A janela de 30 anos foi consolidada de chunks de 5 anos (7 requisições sucessivas) para **chunks de 10 anos** (apenas 3 requisições). A data final foi travada para nunca solicitar datas futuras (ex: fim de 2026), evitando erros de rejeição e esgotamento de quota de burst da API.
+  - **Fator Causa 3 (Backoff Exponencial & Concorrência Thread-Safe)**: Implementado mecanismo de retry com *exponential backoff* e respeito ao cabeçalho `Retry-After` para os clientes ERA5 e MERRA-2, além de trava de sincronização (`threading.Lock`) por nó e intervalo de cortesia de 1.2s entre chunks.
+  - **Correção Polars 1.x**: Corrigido erro de construção de DataFrames com `pl.lit()` dentro do construtor `pl.DataFrame()`, substituído por listas nativas Python de alta velocidade.
+
 ---
 
 ## [1.3.0] - 2026-09-07

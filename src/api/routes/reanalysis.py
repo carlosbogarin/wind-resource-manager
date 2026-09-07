@@ -17,6 +17,7 @@ from src.api.schemas.reanalysis import (
     NodesResponse,
     SubstationGeo,
 )
+from src.core.config import settings
 from src.core.grid_math import get_era5_bounding_nodes, get_merra2_bounding_nodes
 from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y_date_range
 from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
@@ -49,7 +50,12 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
     era5_models = []
     for n in era5_math_nodes:
         node_id = f"ERA5-{n.position}"
-        cached = get_era5_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
+        clean_id = node_id.replace(" ", "_").replace("-", "_")
+        cached = (
+            get_era5_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
+            or get_era5_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
+            or len(list(settings.REANALYSIS_DIR.glob(f"era5_{clean_id}_*.parquet"))) > 0
+        )
         era5_models.append(
             NodeModel(
                 node_id=node_id,
@@ -70,7 +76,12 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
     merra2_models = []
     for n in merra2_math_nodes:
         node_id = f"MERRA2-{n.position}"
-        cached = get_merra2_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
+        clean_id = node_id.replace(" ", "_").replace("-", "_")
+        cached = (
+            get_merra2_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
+            or get_merra2_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
+            or len(list(settings.REANALYSIS_DIR.glob(f"merra2_{clean_id}_*.parquet"))) > 0
+        )
         merra2_models.append(
             NodeModel(
                 node_id=node_id,
@@ -163,6 +174,15 @@ def get_timeseries_data(
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        if df is None or len(df) == 0:
+            return {
+                "node_id": node_id,
+                "model": model,
+                "aggregation": aggregation,
+                "total_points": 0,
+                "series": [],
+            }
 
         # Filtrar por janela ano-mês se fornecida
         df = filter_df_by_period(df, start_month, end_month)
@@ -265,6 +285,34 @@ def get_analytics(
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        if df is None or len(df) == 0:
+            return AnalyticsResponse(
+                node_id=node_id,
+                model=model,
+                total_hours=0,
+                period_start=f"{start_year}-01",
+                period_end=f"{end_year}-12",
+                weibull={
+                    "k_shape": 0.0,
+                    "c_scale": 0.0,
+                    "mean_speed": 0.0,
+                    "std_speed": 0.0,
+                    "histogram": [],
+                    "weibull_curve": [],
+                },
+                wind_rose={
+                    "sectors": [],
+                    "speed_bins": [],
+                    "series": [],
+                    "dominant_sector": "N",
+                    "dominant_frequency_pct": 0.0,
+                    "calm_percentage": 0.0,
+                },
+                diurnal_profile=[],
+                monthly_seasonality=[],
+                ons_correlation=[],
+            )
 
         # Filtrar por janela ano-mês se fornecida
         df = filter_df_by_period(df, start_month, end_month)
