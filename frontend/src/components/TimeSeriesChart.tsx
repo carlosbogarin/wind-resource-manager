@@ -69,11 +69,9 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     plantNames.forEach((p) => {
       items.push(`Usina: ${p}`);
     });
-    items.push('Vento a 10m (Superfície)');
-    if (aggregation === 'daily') items.push('Rajada Máxima Diária');
     if (hasInvalid) items.push('Flag Vento Inválido (%)');
     return items;
-  }, [hasMeasured, mainMeasuredLabel, plantNames, aggregation, hasInvalid]);
+  }, [hasMeasured, mainMeasuredLabel, plantNames, hasInvalid]);
 
   // Altura dinâmica variável dependendo da quantidade de itens de legenda
   // Cada linha de legenda comporta ~3 itens em telas comuns.
@@ -84,15 +82,12 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   const option = useMemo(() => {
     const times = data.map((d) => d.time);
     const speeds100 = data.map((d) => d.speed_100m);
-    const speeds10 = data.map((d) => d.speed_10m);
-    const speedsMax = data.map((d) => d.speed_max ?? null);
     const speedsMeasured = data.map((d) => d.speed_measured ?? null);
     const invalidFlags = data.map((d) => d.invalid_wind_pct ?? 0);
 
     const isCyan = model === 'ERA5';
     const primaryColor = isCyan ? '#06b6d4' : '#f59e0b';
     const measuredColor = '#10b981'; // Emerald para série medida ativa
-    const secondaryColor = '#818cf8'; // Índigo para vento 10m
 
     const seriesList: any[] = [
       {
@@ -147,30 +142,6 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         itemStyle: { color: pColor },
       });
     });
-
-    seriesList.push({
-      name: 'Vento a 10m (Superfície)',
-      type: 'line',
-      yAxisIndex: 0,
-      data: speeds10,
-      smooth: true,
-      showSymbol: false,
-      lineStyle: { width: 1.5, color: secondaryColor },
-      itemStyle: { color: secondaryColor },
-    });
-
-    if (aggregation === 'daily') {
-      seriesList.push({
-        name: 'Rajada Máxima Diária',
-        type: 'line',
-        yAxisIndex: 0,
-        data: speedsMax,
-        smooth: true,
-        showSymbol: false,
-        lineStyle: { width: 1, type: 'dotted', color: '#f87171' },
-        itemStyle: { color: '#f87171' },
-      });
-    }
 
     if (hasInvalid) {
       seriesList.push({
