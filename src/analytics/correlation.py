@@ -26,24 +26,50 @@ def compute_reanalysis_measured_correlation(
         return None
 
     # Normalizar timestamps para pareamento concomitante
-    if aggregation == "daily":
+    if aggregation == "monthly":
         r_clean = (
-            reanalysis_df.with_columns(pl.col("timestamp").dt.date().alias("time_key"))
+            reanalysis_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m").alias("time_key"))
             .group_by("time_key")
             .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
         )
         m_clean = (
-            measured_df.with_columns(pl.col("timestamp").dt.date().alias("time_key"))
+            measured_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m").alias("time_key"))
+            .group_by("time_key")
+            .agg(pl.col("wind_speed_measured").mean().alias("wind_measured"))
+        )
+    elif aggregation == "weekly":
+        r_clean = (
+            reanalysis_df.with_columns(
+                pl.col("timestamp").dt.truncate("1w").dt.strftime("%Y-%m-%d").alias("time_key")
+            )
+            .group_by("time_key")
+            .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
+        )
+        m_clean = (
+            measured_df.with_columns(
+                pl.col("timestamp").dt.truncate("1w").dt.strftime("%Y-%m-%d").alias("time_key")
+            )
+            .group_by("time_key")
+            .agg(pl.col("wind_speed_measured").mean().alias("wind_measured"))
+        )
+    elif aggregation == "daily":
+        r_clean = (
+            reanalysis_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m-%d").alias("time_key"))
+            .group_by("time_key")
+            .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
+        )
+        m_clean = (
+            measured_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m-%d").alias("time_key"))
             .group_by("time_key")
             .agg(pl.col("wind_speed_measured").mean().alias("wind_measured"))
         )
     else:
         # Horário
         r_clean = reanalysis_df.with_columns(
-            pl.col("timestamp").dt.truncate("1h").alias("time_key")
+            pl.col("timestamp").dt.strftime("%Y-%m-%d %H:%M").alias("time_key")
         ).select(["time_key", pl.col("wind_speed_100m").alias("wind_reanalysis")])
         m_clean = measured_df.with_columns(
-            pl.col("timestamp").dt.truncate("1h").alias("time_key")
+            pl.col("timestamp").dt.strftime("%Y-%m-%d %H:%M").alias("time_key")
         ).select(["time_key", pl.col("wind_speed_measured").alias("wind_measured")])
 
     # Inner join para garantir exata concomitância temporal
@@ -55,8 +81,11 @@ def compute_reanalysis_measured_correlation(
     )
 
     n_samples = len(paired)
-    if n_samples < 20:
-        logger.warning(f"Poucos pontos concomitantes para correlação linear ({n_samples} amostras).")
+    min_required = 5 if aggregation == "monthly" else (10 if aggregation == "weekly" else 20)
+    if n_samples < min_required:
+        logger.warning(
+            f"Poucos pontos concomitantes para correlação linear ({n_samples} amostras, mínimo {min_required})."
+        )
         return None
 
     x = paired["wind_reanalysis"].to_numpy().astype(np.float64)

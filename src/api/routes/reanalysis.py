@@ -339,7 +339,7 @@ def get_correlation_data(
     end_year: int = Query(default=2026),
     start_month: str | None = Query(default=None),
     end_month: str | None = Query(default=None),
-    aggregation: str = Query(default="hourly", pattern="^(hourly|daily)$"),
+    aggregation: str = Query(default="hourly", pattern="^(hourly|daily|weekly|monthly)$"),
 ):
     """Calcula regressão linear concomitante (Measure-Correlate-Predict / MCP) entre reanálise e dados reais medidos das turbinas."""
     try:

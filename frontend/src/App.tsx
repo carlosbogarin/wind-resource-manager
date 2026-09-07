@@ -77,7 +77,7 @@ export const App: React.FC = () => {
   const [startPeriod, setStartPeriod] = useState<string>('1996-08');
   const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
-  const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily'>('hourly');
+  const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('hourly');
   const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const autoDownloadedEnsembleRef = React.useRef<string | null>(null);

@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str = "Wind Resource Manager"
-    VERSION: str = "1.4.0"
+    VERSION: str = "1.4.1"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     PORT: int = int(os.getenv("PORT", "8000"))
     HOST: str = "0.0.0.0"

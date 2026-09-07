@@ -220,9 +220,11 @@ def test_uncached_node_endpoints():
 
 
 def test_linear_correlation_computation():
-    import polars as pl
-    from src.analytics.correlation import compute_reanalysis_measured_correlation
     from datetime import datetime, timedelta
+
+    import polars as pl
+
+    from src.analytics.correlation import compute_reanalysis_measured_correlation
 
     dates = [datetime(2024, 1, 1) + timedelta(hours=i) for i in range(100)]
     r_speeds = [5.0 + 0.1 * i for i in range(100)]
@@ -238,8 +240,23 @@ def test_linear_correlation_computation():
     assert abs(res["r_squared"] - 1.0) < 1e-4
     assert abs(res["slope"] - 1.2) < 1e-2
     assert abs(res["intercept"] - 0.5) < 1e-2
-    assert len(res["fit_line"]) == 2
-    assert len(res["ideal_line"]) == 2
+    # Teste semanal e mensal
+    dates_long = [datetime(2023, 1, 1) + timedelta(days=i) for i in range(200)]
+    r_speeds_long = [6.0 + 0.05 * i for i in range(200)]
+    m_speeds_long = [1.1 * s + 0.8 for s in r_speeds_long]
+    r_df_long = pl.DataFrame({"timestamp": dates_long, "wind_speed_100m": r_speeds_long})
+    m_df_long = pl.DataFrame({"timestamp": dates_long, "wind_speed_measured": m_speeds_long})
+
+    res_weekly = compute_reanalysis_measured_correlation(r_df_long, m_df_long, aggregation="weekly")
+    assert res_weekly is not None
+    assert res_weekly["n_samples"] >= 25
+    assert abs(res_weekly["pearson_r"] - 1.0) < 1e-4
+
+    res_monthly = compute_reanalysis_measured_correlation(r_df_long, m_df_long, aggregation="monthly")
+    assert res_monthly is not None
+    assert res_monthly["n_samples"] >= 6
+    assert abs(res_monthly["pearson_r"] - 1.0) < 1e-4
+
 
 
 

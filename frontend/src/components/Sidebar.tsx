@@ -63,7 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className={`text-[10px] font-mono font-medium px-1 py-0.5 rounded leading-none ${
                   isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
                 }`}>
-                  v1.4.0
+                  v1.4.1
                 </span>
               </div>
               <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 leading-tight">

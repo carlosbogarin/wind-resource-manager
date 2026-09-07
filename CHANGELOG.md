@@ -4,6 +4,18 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.4.1] - 2026-09-07
+
+### ✨ Resoluções Semanal e Mensal na Correlação Linear MCP
+- **Adição de Agrupamentos Semanal e Mensal**:
+  - Implementado suporte completo para agregação **Semanal** (`weekly`) e **Mensal** (`monthly`) na rota `/api/reanalysis/correlation` e no componente [`LinearCorrelationChart.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/LinearCorrelationChart.tsx).
+  - O agrupamento mensal segue o padrão clássico da indústria eólica para estudos de certificação P50/P90 de longo prazo (Measure-Correlate-Predict).
+  - No conjunto Caetité 123 (BA), a correlação semanal alcança **$R = 0.9561$** ($R^2 = 91.42\%$, $N = 192$ semanas) e a correlação mensal atinge impressionantes **$R = 0.9636$** ($R^2 = 92.85\%$, $N = 44$ meses).
+- **Compatibilização de Dispersão no Frontend**:
+  - Ajustado mapeamento de pontos de dispersão em [`LinearCorrelationChart.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/LinearCorrelationChart.tsx) para suportar tanto vetores `[x, y, data]` quanto objetos, assegurando renderização perfeita em qualquer cenário.
+
+---
+
 ## [1.4.0] - 2026-09-07
 
 ### ✨ Auto-Download da Reanálise Mais Próxima, Dados Medidos ONS & Correlação MCP

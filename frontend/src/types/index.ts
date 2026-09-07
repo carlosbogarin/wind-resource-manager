@@ -119,7 +119,7 @@ export interface CorrelationResponse {
   model: string;
   ensemble_name: string;
   n_samples: number;
-  aggregation: 'hourly' | 'daily';
+  aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pearson_r: number;
   r_squared: number;
   slope: number;
@@ -136,7 +136,7 @@ export interface CorrelationResponse {
   measured_std: number;
   fit_line: CorrelationPoint[];
   ideal_line: CorrelationPoint[];
-  scatter_points: ScatterPoint[];
+  scatter_points: (ScatterPoint | [number, number, string])[];
 }
 
 export interface OnsMeasuredItem {

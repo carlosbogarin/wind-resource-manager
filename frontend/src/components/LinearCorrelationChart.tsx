@@ -7,8 +7,8 @@ interface LinearCorrelationChartProps {
   nodeTitle: string;
   model: string;
   ensembleName: string;
-  aggregation: 'hourly' | 'daily';
-  onChangeAggregation: (agg: 'hourly' | 'daily') => void;
+  aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  onChangeAggregation: (agg: 'hourly' | 'daily' | 'weekly' | 'monthly') => void;
   isLoading?: boolean;
 }
 
@@ -29,8 +29,10 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
     const isCyan = model === 'ERA5';
     const fitLineColor = isCyan ? '#06b6d4' : '#f59e0b';
 
-    // Formatar pontos de dispersão [x, y, time]
-    const scatterData = data.scatter_points.map((p) => [p.x, p.y, p.time]);
+    // Formatar pontos de dispersão [x, y, time] de forma compatível
+    const scatterData = data.scatter_points.map((p: any) =>
+      Array.isArray(p) ? p : [p.x, p.y, p.time]
+    );
 
     // Reta de regressão ajustada
     const fitLineData = data.fit_line.map((p) => [p.x, p.y]);
@@ -178,30 +180,29 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
           </p>
         </div>
 
-        {/* Seletor de Resolução Horária / Diária */}
+        {/* Seletor de Resolução Temporal */}
         <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
-          <button
-            type="button"
-            onClick={() => onChangeAggregation('hourly')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-              aggregation === 'hourly'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Horária
-          </button>
-          <button
-            type="button"
-            onClick={() => onChangeAggregation('daily')}
-            className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-              aggregation === 'daily'
-                ? 'bg-zinc-800 text-white shadow-sm'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-          >
-            Diária (Média)
-          </button>
+          {(
+            [
+              { id: 'hourly', label: 'Horária' },
+              { id: 'daily', label: 'Diária' },
+              { id: 'weekly', label: 'Semanal' },
+              { id: 'monthly', label: 'Mensal' },
+            ] as const
+          ).map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onChangeAggregation(item.id)}
+              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                aggregation === item.id
+                  ? 'bg-zinc-800 text-white shadow-sm'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -312,8 +313,12 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
             </div>
             <div className="text-[11px] text-zinc-500">
               {aggregation === 'hourly'
-                ? 'Agrupamento horário concomitante'
-                : 'Agrupamento diário concomitante (reduz ruído de micro-escala)'}
+                ? 'Agrupamento horário concomitante (ciclo de 24h)'
+                : aggregation === 'daily'
+                ? 'Agrupamento diário concomitante (reduz ruído de micro-escala)'
+                : aggregation === 'weekly'
+                ? 'Agrupamento semanal concomitante (visão sinótica de meso-escala)'
+                : 'Agrupamento mensal concomitante (calibragem padrão P50/P90 de longo prazo)'}
             </div>
           </div>
         </div>
