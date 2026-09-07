@@ -8,8 +8,21 @@ interface TimeSeriesChartProps {
   model: string;
   aggregation: 'daily' | 'monthly' | 'hourly';
   onChangeAggregation: (agg: 'daily' | 'monthly' | 'hourly') => void;
+  availablePlants?: string[];
+  selectedPlant?: string;
+  onSelectPlant?: (plant: string) => void;
   isLoading?: boolean;
 }
+
+const PLANT_COLORS = [
+  '#34d399', // emerald-400
+  '#38bdf8', // sky-400
+  '#fbbf24', // amber-400
+  '#c084fc', // purple-400
+  '#fb7185', // rose-400
+  '#2dd4bf', // teal-400
+  '#a3e635', // lime-400
+];
 
 export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   data,
@@ -17,25 +30,143 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   model,
   aggregation,
   onChangeAggregation,
+  availablePlants,
+  selectedPlant = 'Média do Conjunto',
+  onSelectPlant,
   isLoading,
 }) => {
+  const plantNames = useMemo(() => {
+    const set = new Set<string>();
+    for (const d of data) {
+      if (d.plant_speeds) {
+        for (const p of Object.keys(d.plant_speeds)) {
+          if (p && p !== 'Média do Conjunto') set.add(p);
+        }
+      }
+    }
+    return Array.from(set).sort();
+  }, [data]);
+
   const option = useMemo(() => {
     const times = data.map((d) => d.time);
     const speeds100 = data.map((d) => d.speed_100m);
     const speeds10 = data.map((d) => d.speed_10m);
     const speedsMax = data.map((d) => d.speed_max ?? null);
     const speedsMeasured = data.map((d) => d.speed_measured ?? null);
+    const invalidFlags = data.map((d) => d.invalid_wind_pct ?? 0);
 
     const hasMeasured = data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined);
+    const hasInvalid = data.some((d) => (d.invalid_wind_pct ?? 0) > 0);
     const isCyan = model === 'ERA5';
     const primaryColor = isCyan ? '#06b6d4' : '#f59e0b';
-    const measuredColor = '#10b981'; // Emerald para anemômetros reais
+    const measuredColor = '#10b981'; // Emerald para série medida ativa
     const secondaryColor = '#818cf8'; // Índigo para vento 10m
 
+    const mainMeasuredLabel = selectedPlant && selectedPlant !== 'Média do Conjunto'
+      ? `Vento Medido (${selectedPlant})`
+      : 'Vento Medido (Média Conjunto)';
+
     const legendItems = ['Vento a 100m (Hub)'];
-    if (hasMeasured) legendItems.push('Vento Medido Usina (ONS)');
+    if (hasMeasured) legendItems.push(mainMeasuredLabel);
+    // Incluir usinas individuais na legenda se disponíveis
+    plantNames.forEach((p) => {
+      legendItems.push(`Usina: ${p}`);
+    });
     legendItems.push('Vento a 10m (Superfície)');
     if (aggregation === 'daily') legendItems.push('Rajada Máxima Diária');
+    if (hasInvalid) legendItems.push('Flag Vento Inválido (%)');
+
+    const seriesList: any[] = [
+      {
+        name: 'Vento a 100m (Hub)',
+        type: 'line',
+        yAxisIndex: 0,
+        data: speeds100,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { width: 2, color: primaryColor },
+        itemStyle: { color: primaryColor },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: isCyan ? 'rgba(6, 182, 212, 0.35)' : 'rgba(245, 158, 11, 0.35)' },
+              { offset: 1, color: isCyan ? 'rgba(6, 182, 212, 0.0)' : 'rgba(245, 158, 11, 0.0)' },
+            ],
+          },
+        },
+      },
+    ];
+
+    if (hasMeasured) {
+      seriesList.push({
+        name: mainMeasuredLabel,
+        type: 'line',
+        yAxisIndex: 0,
+        data: speedsMeasured,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { width: 2.5, color: measuredColor },
+        itemStyle: { color: measuredColor },
+      });
+    }
+
+    // Séries individuais das usinas do complexo
+    plantNames.forEach((p, idx) => {
+      const pColor = PLANT_COLORS[idx % PLANT_COLORS.length];
+      seriesList.push({
+        name: `Usina: ${p}`,
+        type: 'line',
+        yAxisIndex: 0,
+        data: data.map((d) => d.plant_speeds?.[p] ?? null),
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { width: 1.2, type: 'dashed', color: pColor },
+        itemStyle: { color: pColor },
+      });
+    });
+
+    seriesList.push({
+      name: 'Vento a 10m (Superfície)',
+      type: 'line',
+      yAxisIndex: 0,
+      data: speeds10,
+      smooth: true,
+      showSymbol: false,
+      lineStyle: { width: 1.5, color: secondaryColor },
+      itemStyle: { color: secondaryColor },
+    });
+
+    if (aggregation === 'daily') {
+      seriesList.push({
+        name: 'Rajada Máxima Diária',
+        type: 'line',
+        yAxisIndex: 0,
+        data: speedsMax,
+        smooth: true,
+        showSymbol: false,
+        lineStyle: { width: 1, type: 'dotted', color: '#f87171' },
+        itemStyle: { color: '#f87171' },
+      });
+    }
+
+    if (hasInvalid) {
+      seriesList.push({
+        name: 'Flag Vento Inválido (%)',
+        type: 'bar',
+        yAxisIndex: 1,
+        data: invalidFlags,
+        barMaxWidth: 6,
+        itemStyle: {
+          color: 'rgba(244, 63, 94, 0.45)',
+          borderRadius: [2, 2, 0, 0],
+        },
+      });
+    }
 
     return {
       backgroundColor: 'transparent',
@@ -53,6 +184,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         data: legendItems,
         textStyle: { color: '#a1a1aa', fontSize: 11 },
         top: 0,
+        type: 'scroll',
       },
       grid: {
         left: '3%',
@@ -95,75 +227,29 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
         axisLine: { lineStyle: { color: '#3f3f46' } },
         axisLabel: { color: '#a1a1aa', fontSize: 11 },
       },
-      yAxis: {
-        type: 'value',
-        name: 'Velocidade do Vento (m/s)',
-        nameTextStyle: { color: '#a1a1aa', fontSize: 11 },
-        axisLine: { lineStyle: { color: '#3f3f46' } },
-        axisLabel: { color: '#a1a1aa', fontSize: 11 },
-        splitLine: { lineStyle: { color: '#27272a', type: 'dashed' } },
-      },
-      series: [
+      yAxis: [
         {
-          name: 'Vento a 100m (Hub)',
-          type: 'line',
-          data: speeds100,
-          smooth: true,
-          showSymbol: false,
-          lineStyle: { width: 2, color: primaryColor },
-          itemStyle: { color: primaryColor },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: isCyan ? 'rgba(6, 182, 212, 0.35)' : 'rgba(245, 158, 11, 0.35)' },
-                { offset: 1, color: isCyan ? 'rgba(6, 182, 212, 0.0)' : 'rgba(245, 158, 11, 0.0)' },
-              ],
-            },
-          },
+          type: 'value',
+          name: 'Velocidade (m/s)',
+          nameTextStyle: { color: '#a1a1aa', fontSize: 11 },
+          axisLine: { lineStyle: { color: '#3f3f46' } },
+          axisLabel: { color: '#a1a1aa', fontSize: 11, formatter: '{value} m/s' },
+          splitLine: { lineStyle: { color: '#27272a', type: 'dashed' } },
         },
-        ...(hasMeasured
-          ? [
-              {
-                name: 'Vento Medido Usina (ONS)',
-                type: 'line',
-                data: speedsMeasured,
-                smooth: true,
-                showSymbol: false,
-                lineStyle: { width: 2, color: measuredColor },
-                itemStyle: { color: measuredColor },
-              },
-            ]
-          : []),
         {
-          name: 'Vento a 10m (Superfície)',
-          type: 'line',
-          data: speeds10,
-          smooth: true,
-          showSymbol: false,
-          lineStyle: { width: 1.5, color: secondaryColor },
-          itemStyle: { color: secondaryColor },
+          type: 'value',
+          name: 'Vento Inválido (%)',
+          nameTextStyle: { color: '#f43f5e', fontSize: 11 },
+          min: 0,
+          max: 100,
+          axisLine: { lineStyle: { color: '#f43f5e' } },
+          axisLabel: { color: '#f43f5e', fontSize: 11, formatter: '{value}%' },
+          splitLine: { show: false },
         },
-        ...(aggregation === 'daily'
-          ? [
-              {
-                name: 'Rajada Máxima Diária',
-                type: 'line',
-                data: speedsMax,
-                smooth: true,
-                showSymbol: false,
-                lineStyle: { width: 1, type: 'dashed', color: '#f87171' },
-                itemStyle: { color: '#f87171' },
-              },
-            ]
-          : []),
       ],
+      series: seriesList,
     };
-  }, [data, nodeTitle, model, aggregation]);
+  }, [data, nodeTitle, model, aggregation, selectedPlant, plantNames]);
 
   const hasMeasuredData = useMemo(
     () => data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined),
@@ -187,25 +273,44 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             )}
           </h4>
           <p className="text-xs text-zinc-400 mt-0.5">
-            Velocidade média horária/diária do vento a 100m (altura do rotor), 10m e medição real dos aerogeradores (ONS)
+            Velocidade média a 100m (rotor), anemômetros reais das usinas do parque e taxa de dado inválido no eixo secundário
           </p>
         </div>
 
-        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
-          {(['daily', 'monthly', 'hourly'] as const).map((agg) => (
-            <button
-              key={agg}
-              type="button"
-              onClick={() => onChangeAggregation(agg)}
-              className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
-                aggregation === agg
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {agg === 'daily' ? 'Diária' : agg === 'monthly' ? 'Mensal' : 'Horária'}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {availablePlants && availablePlants.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
+              <span className="text-zinc-500 font-medium">Usina:</span>
+              <select
+                value={selectedPlant}
+                onChange={(e) => onSelectPlant && onSelectPlant(e.target.value)}
+                className="bg-transparent text-emerald-400 font-semibold focus:outline-none cursor-pointer"
+              >
+                {availablePlants.map((p) => (
+                  <option key={p} value={p} className="bg-zinc-900 text-zinc-200">
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+            {(['daily', 'monthly', 'hourly'] as const).map((agg) => (
+              <button
+                key={agg}
+                type="button"
+                onClick={() => onChangeAggregation(agg)}
+                className={`px-2.5 py-1 rounded-md font-medium transition-colors ${
+                  aggregation === agg
+                    ? 'bg-zinc-800 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {agg === 'daily' ? 'Diária' : agg === 'monthly' ? 'Mensal' : 'Horária'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

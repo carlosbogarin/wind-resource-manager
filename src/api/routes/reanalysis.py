@@ -24,7 +24,11 @@ from src.etl.date_range_checker import filter_df_by_period, get_synchronized_30y
 from src.etl.era5_client import fetch_and_cache_era5, get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import fetch_and_cache_merra2, get_merra2_cache_path, load_merra2_series
 from src.etl.ons_catalog import get_ensemble_details
-from src.etl.ons_eol_detail import fetch_ensemble_measured_series, get_aggregated_measured_series
+from src.etl.ons_eol_detail import (
+    fetch_ensemble_measured_series,
+    get_aggregated_measured_series,
+    get_ensemble_plants,
+)
 
 logger = logging.getLogger("api.reanalysis")
 router = APIRouter(prefix="/reanalysis", tags=["Reanálise ERA5 & MERRA-2"])
@@ -158,6 +162,24 @@ def trigger_download(req: DownloadRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/plants")
+def get_plants_for_ensemble(
+    ensemble_name: str = Query(..., description="Nome do conjunto eólico ONS"),
+    id_ons: str | None = Query(default=None),
+):
+    """Retorna a lista de usinas individuais que compõem o conjunto eólico (dataset ONS EOL Detailed)."""
+    try:
+        plants = get_ensemble_plants(ensemble_name, id_ons=id_ons)
+        return {
+            "ensemble_name": ensemble_name,
+            "id_ons": id_ons,
+            "plants": plants,
+        }
+    except Exception as e:
+        logger.error(f"Erro ao listar usinas do conjunto '{ensemble_name}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/timeseries")
 def get_timeseries_data(
     node_id: str = Query(...),
@@ -165,13 +187,14 @@ def get_timeseries_data(
     latitude: float = Query(...),
     longitude: float = Query(...),
     ensemble_name: str | None = Query(default=None, description="Nome do conjunto eólico para agregar vento medido ONS"),
+    plant_name: str | None = Query(default=None, description="Nome da usina individual ou 'Média do Conjunto'"),
     start_year: int = Query(default=1994),
     end_year: int = Query(default=2024),
     start_month: str | None = Query(default=None, description="Formato AAAA-MM"),
     end_month: str | None = Query(default=None, description="Formato AAAA-MM"),
     aggregation: str = Query(default="daily", pattern="^(hourly|daily|monthly)$"),
 ):
-    """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts, incluindo vento medido dos parques se disponível."""
+    """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts, incluindo vento medido dos parques e flag de dado inválido."""
     try:
         if model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
@@ -195,16 +218,30 @@ def get_timeseries_data(
                 aggregation = "daily"
 
         # Carregar dados medidos concomitantes do conjunto se especificado
-        measured_map: dict[str, float] = {}
-        gen_map: dict[str, float] = {}
+        measured_map: dict[str, float | None] = {}
+        gen_map: dict[str, float | None] = {}
+        invalid_map: dict[str, float | None] = {}
+        plant_speeds_map: dict[str, dict[str, float | None]] = {}
+        available_plants: list[str] = []
+
         if ensemble_name:
             try:
                 m_df = fetch_ensemble_measured_series(ensemble_name)
                 if m_df is not None and len(m_df) > 0:
-                    m_series = get_aggregated_measured_series(m_df, start_month, end_month, aggregation)
-                    for item in m_series:
-                        measured_map[item["time"]] = item["speed_measured"]
-                        gen_map[item["time"]] = item["generation_mw"]
+                    m_res = get_aggregated_measured_series(
+                        m_df,
+                        start_month=start_month,
+                        end_month=end_month,
+                        aggregation=aggregation,
+                        plant_name=plant_name,
+                    )
+                    available_plants = m_res.get("available_plants", [])
+                    for item in m_res.get("series", []):
+                        t = item["time"]
+                        measured_map[t] = item.get("speed_measured")
+                        gen_map[t] = item.get("generation_mw")
+                        invalid_map[t] = item.get("invalid_flag_pct", 0.0)
+                        plant_speeds_map[t] = item.get("plant_speeds", {})
             except Exception as ex:
                 logger.warning(f"Não foi possível carregar vento medido ONS para '{ensemble_name}': {ex}")
 
@@ -234,6 +271,8 @@ def get_timeseries_data(
                         "temp": row["temperature"],
                         "speed_measured": measured_map.get(time_str),
                         "generation_mw": gen_map.get(time_str),
+                        "invalid_wind_pct": invalid_map.get(time_str, 0.0),
+                        "plant_speeds": plant_speeds_map.get(time_str, {}),
                     }
                 )
         elif aggregation == "monthly":
@@ -262,6 +301,8 @@ def get_timeseries_data(
                         "temp": row["temperature"],
                         "speed_measured": measured_map.get(time_str),
                         "generation_mw": gen_map.get(time_str),
+                        "invalid_wind_pct": invalid_map.get(time_str, 0.0),
+                        "plant_speeds": plant_speeds_map.get(time_str, {}),
                     }
                 )
         else:
@@ -279,6 +320,8 @@ def get_timeseries_data(
                         "temp": row["temperature_2m_c"],
                         "speed_measured": measured_map.get(time_str),
                         "generation_mw": gen_map.get(time_str),
+                        "invalid_wind_pct": invalid_map.get(time_str, 0.0),
+                        "plant_speeds": plant_speeds_map.get(time_str, {}),
                     }
                 )
 
@@ -287,6 +330,8 @@ def get_timeseries_data(
             "model": model,
             "aggregation": aggregation,
             "has_measured_data": len(measured_map) > 0,
+            "selected_plant": plant_name or "Média do Conjunto",
+            "available_plants": available_plants,
             "total_points": len(data),
             "series": data,
         }
@@ -299,6 +344,7 @@ def get_timeseries_data(
 def get_ons_measured_series(
     ensemble_name: str = Query(..., description="Nome do conjunto eólico ONS"),
     id_ons: str | None = Query(default=None),
+    plant_name: str | None = Query(default=None, description="Nome da usina ou Média do Conjunto"),
     start_month: str | None = Query(default=None),
     end_month: str | None = Query(default=None),
     aggregation: str = Query(default="daily", pattern="^(hourly|daily|monthly)$"),
@@ -312,15 +358,24 @@ def get_ons_measured_series(
                 "id_ons": id_ons,
                 "total_points": 0,
                 "aggregation": aggregation,
+                "available_plants": ["Média do Conjunto"],
                 "series": [],
             }
-        series = get_aggregated_measured_series(df, start_month, end_month, aggregation)
+        res = get_aggregated_measured_series(
+            df,
+            start_month=start_month,
+            end_month=end_month,
+            aggregation=aggregation,
+            plant_name=plant_name,
+        )
         return {
             "ensemble_name": ensemble_name,
             "id_ons": id_ons,
-            "total_points": len(series),
+            "target_plant": res.get("target_plant", "Média do Conjunto"),
+            "available_plants": res.get("available_plants", []),
+            "total_points": len(res.get("series", [])),
             "aggregation": aggregation,
-            "series": series,
+            "series": res.get("series", []),
         }
     except Exception as e:
         logger.error(f"Erro ao consultar vento medido ONS para '{ensemble_name}': {e}")
@@ -335,6 +390,7 @@ def get_correlation_data(
     longitude: float = Query(...),
     ensemble_name: str = Query(...),
     id_ons: str | None = Query(default=None),
+    plant_name: str | None = Query(default=None, description="Nome da usina individual ou 'Média do Conjunto'"),
     start_year: int = Query(default=1996),
     end_year: int = Query(default=2026),
     start_month: str | None = Query(default=None),
@@ -362,6 +418,7 @@ def get_correlation_data(
             reanalysis_df=r_df,
             measured_df=m_df,
             aggregation=aggregation,
+            plant_name=plant_name,
         )
         if corr_res is None:
             return None

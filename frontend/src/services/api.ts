@@ -10,6 +10,7 @@ import {
   AnalyticsData,
   CorrelationResponse,
   OnsMeasuredResponse,
+  EnsemblePlantsResponse,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -37,6 +38,13 @@ export const fetchEnsembles = async (company: string): Promise<Ensemble[]> => {
 export const fetchEnsembleDetails = async (id_ons: string): Promise<EnsembleDetail> => {
   const { data } = await api.get<EnsembleDetail>(`/catalog/ensemble/${id_ons}`);
   return data;
+};
+
+export const fetchEnsemblePlants = async (ensemble_name: string, id_ons?: string): Promise<string[]> => {
+  const { data } = await api.get<EnsemblePlantsResponse>('/reanalysis/plants', {
+    params: { ensemble_name, id_ons },
+  });
+  return data.plants || ['Média do Conjunto'];
 };
 
 export const fetchNodes = async (id_ons: string): Promise<NodesResponse> => {
@@ -74,6 +82,7 @@ export interface TimeSeriesParams {
   latitude: number;
   longitude: number;
   ensemble_name?: string;
+  plant_name?: string;
   start_year?: number;
   end_year?: number;
   start_month?: string;
@@ -95,6 +104,7 @@ export interface CorrelationParams {
   longitude: number;
   ensemble_name: string;
   id_ons?: string;
+  plant_name?: string;
   start_year?: number;
   end_year?: number;
   start_month?: string;
@@ -112,6 +122,7 @@ export const fetchCorrelation = async (params: CorrelationParams): Promise<Corre
 export interface OnsMeasuredParams {
   ensemble_name: string;
   id_ons?: string;
+  plant_name?: string;
   start_month?: string;
   end_month?: string;
   aggregation?: 'hourly' | 'daily' | 'monthly';

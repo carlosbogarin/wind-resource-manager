@@ -258,6 +258,68 @@ def test_linear_correlation_computation():
     assert abs(res_monthly["pearson_r"] - 1.0) < 1e-4
 
 
+def test_reanalysis_catalog():
+    from datetime import datetime
+
+    from src.database.reanalysis_catalog import get_node_record, upsert_node_record
+
+    min_ts = datetime(1996, 1, 1, 0, 0)
+    max_ts = datetime(2026, 8, 31, 23, 0)
+
+    upsert_node_record(
+        model="ERA5",
+        node_id="TEST-NODE-1",
+        lat=-14.25,
+        lon=-42.50,
+        min_timestamp=min_ts,
+        max_timestamp=max_ts,
+        total_records=268800,
+        file_path="data/reanalysis/test.parquet",
+        file_size_mb=4.5,
+    )
+
+    rec = get_node_record("ERA5", -14.25, -42.50)
+    assert rec is not None
+    assert rec["node_id"] == "TEST-NODE-1"
+    assert rec["total_records"] == 268800
+    assert rec["max_timestamp"] == max_ts
+
+
+def test_multi_plant_correlation():
+    from datetime import datetime, timedelta
+
+    import polars as pl
+
+    from src.analytics.correlation import compute_reanalysis_measured_correlation
+
+    dates = [datetime(2024, 1, 1) + timedelta(hours=i) for i in range(50)]
+    r_speeds = [6.0 + 0.05 * i for i in range(50)]
+
+    r_df = pl.DataFrame({"timestamp": dates, "wind_speed_100m": r_speeds})
+
+    # DataFrame com duas usinas e a média
+    m_records = []
+    for i, d in enumerate(dates):
+        m_records.append({"timestamp": d, "nom_usina": "Usina Alpha", "wind_speed_measured": 7.0 + 0.05 * i})
+        m_records.append({"timestamp": d, "nom_usina": "Usina Beta", "wind_speed_measured": 5.0 + 0.05 * i})
+        m_records.append({"timestamp": d, "nom_usina": "Média do Conjunto", "wind_speed_measured": 6.0 + 0.05 * i})
+
+    m_df = pl.DataFrame(m_records)
+
+    res_alpha = compute_reanalysis_measured_correlation(r_df, m_df, aggregation="hourly", plant_name="Usina Alpha")
+    assert res_alpha is not None
+    assert res_alpha["plant_name"] == "Usina Alpha"
+    assert "Usina Beta" in res_alpha["available_plants"]
+    assert "Média do Conjunto" in res_alpha["available_plants"]
+    assert abs(res_alpha["pearson_r"] - 1.0) < 1e-4
+
+    res_beta = compute_reanalysis_measured_correlation(r_df, m_df, aggregation="hourly", plant_name="Usina Beta")
+    assert res_beta is not None
+    assert res_beta["plant_name"] == "Usina Beta"
+    assert abs(res_beta["pearson_r"] - 1.0) < 1e-4
+
+
+
 
 
 

@@ -8,13 +8,14 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
 from src.core.config import settings
+from src.database.reanalysis_catalog import upsert_node_record
 
 logger = logging.getLogger("era5_client")
 
@@ -28,6 +29,18 @@ def _get_ssl_context() -> ssl.SSLContext:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return ctx
+
+
+def find_existing_era5_file(lat: float, lon: float) -> Path | None:
+    """Localiza qualquer arquivo Parquet existente para as coordenadas exatas da grade ERA5."""
+    settings.REANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+    pattern = f"era5_*_{lat:.4f}_{lon:.4f}_*.parquet"
+    matches = sorted(
+        settings.REANALYSIS_DIR.glob(pattern),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return matches[0] if matches else None
 
 
 def get_era5_cache_path(node_id: str, lat: float, lon: float, start_year: int, end_year: int) -> Path:
@@ -109,32 +122,110 @@ def fetch_and_cache_era5(
     end_year: int = 2026,
     force: bool = False,
 ) -> Path:
-    """Baixa a série temporal histórica de reanálise ERA5 (até 30 anos) e salva em Parquet."""
+    """Baixa a série temporal histórica de reanálise ERA5 com suporte a append incremental."""
     cache_path = get_era5_cache_path(node_id, lat, lon, start_year, end_year)
+    existing_file = find_existing_era5_file(lat, lon)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    target_end_str = min(f"{end_year}-12-31", today_str)
 
-    if cache_path.exists() and not force:
-        logger.info(f"Série ERA5 já em cache: {cache_path}")
-        return cache_path
+    # 1. Se já existe arquivo Parquet e não é force, verifica se podemos reaproveitar ou fazer incremento delta
+    if existing_file and existing_file.exists() and not force:
+        try:
+            df_existing = pl.read_parquet(existing_file)
+            if len(df_existing) > 0:
+                max_ts = df_existing["timestamp"].max()
+                min_ts = df_existing["timestamp"].min()
+                max_ts_str = max_ts.strftime("%Y-%m-%d")
 
+                # Se a base já possui dados até a data limite solicitada, está 100% atualizada
+                if max_ts_str >= target_end_str:
+                    logger.info(f"Série ERA5 já em cache e 100% atualizada até {max_ts_str}: {existing_file}")
+                    upsert_node_record(
+                        model="ERA5",
+                        node_id=node_id,
+                        lat=lat,
+                        lon=lon,
+                        min_timestamp=min_ts,
+                        max_timestamp=max_ts,
+                        total_records=len(df_existing),
+                        file_path=existing_file,
+                        file_size_mb=existing_file.stat().st_size / (1024 * 1024),
+                    )
+                    return existing_file
+
+                # 2. INCREMENTO DELTA: base existe com histórico de 30 anos, baixa apenas o período faltante
+                with _era5_download_lock:
+                    inc_start_dt = max_ts + timedelta(hours=1)
+                    inc_start_str = inc_start_dt.strftime("%Y-%m-%d")
+
+                    if inc_start_str <= target_end_str:
+                        logger.info(
+                            f"Base existente até {max_ts_str}. Baixando apenas o DELTA incremental de {inc_start_str} a {target_end_str}..."
+                        )
+                        delta_hourly = fetch_era5_timeseries_chunk(lat, lon, inc_start_str, target_end_str)
+                        d_times = delta_hourly.get("time", [])
+                        if d_times:
+                            d_rows = len(d_times)
+                            delta_df = pl.DataFrame(
+                                {
+                                    "timestamp": [datetime.strptime(t, "%Y-%m-%dT%H:%M") for t in d_times],
+                                    "wind_speed_100m": [float(v) if v is not None else 0.0 for v in delta_hourly.get("wind_speed_100m", [])],
+                                    "wind_speed_10m": [float(v) if v is not None else 0.0 for v in delta_hourly.get("wind_speed_10m", [])],
+                                    "wind_direction_100m": [float(v) if v is not None else 0.0 for v in delta_hourly.get("wind_direction_100m", [])],
+                                    "wind_direction_10m": [float(v) if v is not None else 0.0 for v in delta_hourly.get("wind_direction_10m", [])],
+                                    "surface_pressure_hpa": [float(v) if v is not None else 1013.25 for v in delta_hourly.get("surface_pressure", [])],
+                                    "temperature_2m_c": [float(v) if v is not None else 25.0 for v in delta_hourly.get("temperature_2m", [])],
+                                    "node_id": [node_id] * d_rows,
+                                    "model": ["ERA5"] * d_rows,
+                                    "latitude": [lat] * d_rows,
+                                    "longitude": [lon] * d_rows,
+                                }
+                            )
+                            combined_df = (
+                                pl.concat([df_existing, delta_df])
+                                .unique(subset=["timestamp"])
+                                .sort("timestamp")
+                            )
+                            combined_df.write_parquet(cache_path)
+                            if existing_file != cache_path and existing_file.exists():
+                                existing_file.unlink(missing_ok=True)
+
+                            c_min = combined_df["timestamp"].min()
+                            c_max = combined_df["timestamp"].max()
+                            file_mb = cache_path.stat().st_size / (1024 * 1024)
+                            upsert_node_record(
+                                model="ERA5",
+                                node_id=node_id,
+                                lat=lat,
+                                lon=lon,
+                                min_timestamp=c_min,
+                                max_timestamp=c_max,
+                                total_records=len(combined_df),
+                                file_path=cache_path,
+                                file_size_mb=file_mb,
+                            )
+                            logger.info(
+                                f"Série ERA5 incrementada com sucesso! +{len(delta_df)} horas adicionadas. Total: {len(combined_df)} horas."
+                            )
+                            return cache_path
+        except Exception as e:
+            logger.warning(f"Erro ao verificar incremento de base existente ({e}). Procedendo com download completo...")
+
+    # 3. Download completo (primeira vez ou quando forçado)
     with _era5_download_lock:
-        # Checar novamente após adquirir o lock para evitar download duplicado
         if cache_path.exists() and not force:
             return cache_path
 
         logger.info(
-            f"Iniciando download da série temporal ERA5 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
+            f"Iniciando download completo da série temporal ERA5 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
         )
 
-        today_str = datetime.now().strftime("%Y-%m-%d")
-
-        # Blocos de 10 anos: reduz requisições de 7 para 3, mitigando estouro de rate-limit
         chunk_size_years = 10
         all_dfs: list[pl.DataFrame] = []
 
         for curr_start in range(start_year, end_year + 1, chunk_size_years):
             curr_end = min(curr_start + chunk_size_years - 1, end_year)
             start_date = f"{curr_start}-01-01"
-            # Nunca solicitar datas futuras além de hoje
             candidate_end = f"{curr_end}-12-31"
             end_date = min(candidate_end, today_str)
 
@@ -172,17 +263,31 @@ def fetch_and_cache_era5(
                 }
             )
             all_dfs.append(chunk_df)
-
-            # Pausa cortês entre blocos para respeitar o rate-limiter da Open-Meteo
             time.sleep(1.2)
 
         if not all_dfs:
             raise ValueError(f"Nenhum dado retornado para o nó {node_id} ({lat}, {lon})")
 
-        final_df = pl.concat(all_dfs).sort("timestamp")
+        final_df = pl.concat(all_dfs).unique(subset=["timestamp"]).sort("timestamp")
         final_df.write_parquet(cache_path)
+
+        min_ts = final_df["timestamp"].min()
+        max_ts = final_df["timestamp"].max()
+        file_mb = cache_path.stat().st_size / (1024 * 1024)
+        upsert_node_record(
+            model="ERA5",
+            node_id=node_id,
+            lat=lat,
+            lon=lon,
+            min_timestamp=min_ts,
+            max_timestamp=max_ts,
+            total_records=len(final_df),
+            file_path=cache_path,
+            file_size_mb=file_mb,
+        )
+
         logger.info(
-            f"Série ERA5 salva com sucesso em {cache_path} ({len(final_df)} registros horários, {cache_path.stat().st_size / 1024 / 1024:.2f} MB)"
+            f"Série ERA5 salva com sucesso em {cache_path} ({len(final_df)} registros horários, {file_mb:.2f} MB)"
         )
         return cache_path
 
@@ -191,16 +296,20 @@ def load_era5_series(
     node_id: str,
     lat: float,
     lon: float,
-    start_year: int = 1994,
-    end_year: int = 2024,
+    start_year: int = 1996,
+    end_year: int = 2026,
     auto_fetch: bool = False,
 ) -> pl.DataFrame | None:
-    """Carrega série temporal do ERA5 a partir do cache Parquet. Não efetua download automático a menos que solicitado."""
+    """Carrega série temporal do ERA5 a partir do cache Parquet com resolução de arquivos existentes."""
     cache_path = get_era5_cache_path(node_id, lat, lon, start_year, end_year)
     if not cache_path.exists():
+        existing_file = find_existing_era5_file(lat, lon)
+        if existing_file and existing_file.exists():
+            return pl.read_parquet(existing_file)
         if auto_fetch:
             fetch_and_cache_era5(node_id, lat, lon, start_year, end_year)
-        else:
-            return None
+            if cache_path.exists():
+                return pl.read_parquet(cache_path)
+        return None
     return pl.read_parquet(cache_path)
 

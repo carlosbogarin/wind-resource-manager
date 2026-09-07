@@ -9,6 +9,9 @@ interface LinearCorrelationChartProps {
   ensembleName: string;
   aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
   onChangeAggregation: (agg: 'hourly' | 'daily' | 'weekly' | 'monthly') => void;
+  availablePlants?: string[];
+  selectedPlant?: string;
+  onSelectPlant?: (plant: string) => void;
   isLoading?: boolean;
 }
 
@@ -19,6 +22,9 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
   ensembleName,
   aggregation,
   onChangeAggregation,
+  availablePlants,
+  selectedPlant = 'Média do Conjunto',
+  onSelectPlant,
   isLoading,
 }) => {
   const chartOption = useMemo(() => {
@@ -47,6 +53,8 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
       15
     );
 
+    const activePlantName = data.plant_name || selectedPlant || 'Média do Conjunto';
+
     return {
       backgroundColor: 'transparent',
       tooltip: {
@@ -61,7 +69,7 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
               <div class="font-sans text-xs space-y-1">
                 <div class="text-zinc-400 font-mono">${time}</div>
                 <div class="text-white">Reanálise (${model}): <span class="font-bold text-cyan-400">${x.toFixed(2)} m/s</span></div>
-                <div class="text-white">Medido Usina (ONS): <span class="font-bold text-emerald-400">${y.toFixed(2)} m/s</span></div>
+                <div class="text-white">Medido (${activePlantName}): <span class="font-bold text-emerald-400">${y.toFixed(2)} m/s</span></div>
                 <div class="text-zinc-400 text-[10px]">Δ (Erro): ${(y - x).toFixed(2)} m/s</div>
               </div>
             `;
@@ -174,35 +182,59 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
             <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-emerald-400 font-medium">
               {ensembleName}
             </span>
+            {data?.plant_name && data.plant_name !== 'Média do Conjunto' && (
+              <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium">
+                Usina: {data.plant_name}
+              </span>
+            )}
           </div>
           <p className="text-xs text-zinc-400 mt-1">
             Metodologia Measure-Correlate-Predict (MCP): calibragem entre velocidades de vento da reanálise atmosférica e medições reais dos anemômetros dos aerogeradores (ONS EOL Detailed).
           </p>
         </div>
 
-        {/* Seletor de Resolução Temporal */}
-        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
-          {(
-            [
-              { id: 'hourly', label: 'Horária' },
-              { id: 'daily', label: 'Diária' },
-              { id: 'weekly', label: 'Semanal' },
-              { id: 'monthly', label: 'Mensal' },
-            ] as const
-          ).map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => onChangeAggregation(item.id)}
-              className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
-                aggregation === item.id
-                  ? 'bg-zinc-800 text-white shadow-sm'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          {availablePlants && availablePlants.length > 1 && (
+            <div className="flex items-center gap-1.5 bg-zinc-950 px-2.5 py-1 rounded-lg border border-zinc-800 text-xs">
+              <span className="text-zinc-500 font-medium">Usina:</span>
+              <select
+                value={selectedPlant}
+                onChange={(e) => onSelectPlant && onSelectPlant(e.target.value)}
+                className="bg-transparent text-emerald-400 font-semibold focus:outline-none cursor-pointer"
+              >
+                {availablePlants.map((p) => (
+                  <option key={p} value={p} className="bg-zinc-900 text-zinc-200">
+                    {p}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Seletor de Resolução Temporal */}
+          <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
+            {(
+              [
+                { id: 'hourly', label: 'Horária' },
+                { id: 'daily', label: 'Diária' },
+                { id: 'weekly', label: 'Semanal' },
+                { id: 'monthly', label: 'Mensal' },
+              ] as const
+            ).map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onChangeAggregation(item.id)}
+                className={`px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  aggregation === item.id
+                    ? 'bg-zinc-800 text-white shadow-sm'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

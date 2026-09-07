@@ -92,6 +92,8 @@ export interface TimeSeriesItem {
   direction_100m?: number;
   speed_measured?: number | null;
   generation_mw?: number | null;
+  invalid_wind_pct?: number;
+  plant_speeds?: Record<string, number | null>;
 }
 
 export interface TimeSeriesResponse {
@@ -99,8 +101,16 @@ export interface TimeSeriesResponse {
   model: string;
   aggregation: string;
   has_measured_data?: boolean;
+  selected_plant?: string;
+  available_plants?: string[];
   total_points: number;
   series: TimeSeriesItem[];
+}
+
+export interface EnsemblePlantsResponse {
+  ensemble_name: string;
+  id_ons?: string;
+  plants: string[];
 }
 
 export interface CorrelationPoint {
@@ -118,6 +128,8 @@ export interface CorrelationResponse {
   node_id: string;
   model: string;
   ensemble_name: string;
+  plant_name?: string;
+  available_plants?: string[];
   n_samples: number;
   aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pearson_r: number;
@@ -143,11 +155,16 @@ export interface OnsMeasuredItem {
   time: string;
   speed_measured: number;
   generation_mw: number;
+  invalid_flag_pct?: number;
+  invalid_flag_count?: number;
+  plant_speeds?: Record<string, number | null>;
 }
 
 export interface OnsMeasuredResponse {
   ensemble_name: string;
   id_ons?: string;
+  target_plant?: string;
+  available_plants?: string[];
   total_points: number;
   aggregation: string;
   series: OnsMeasuredItem[];

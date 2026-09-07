@@ -9,6 +9,7 @@ import {
   fetchCorrelation,
   downloadNodeData,
   fetchDateRange,
+  fetchEnsemblePlants,
 } from './services/api';
 import { ReanalysisNode, Ensemble, CompanySummary } from './types';
 import { Sidebar, ActiveModule } from './components/Sidebar';
@@ -78,6 +79,7 @@ export const App: React.FC = () => {
   const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
   const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('hourly');
+  const [selectedPlant, setSelectedPlant] = useState<string>('Média do Conjunto');
   const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles' | 'ons'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const autoDownloadedEnsembleRef = React.useRef<string | null>(null);
@@ -270,6 +272,20 @@ export const App: React.FC = () => {
   const activeEnsemble = ensembles.find((e) => e.id_ons === selectedIdOns);
   const isLight = theme === 'light';
 
+  // 7.1 Fetch Ensemble Plants (Usinas do Complexo ONS)
+  const { data: ensemblePlants = ['Média do Conjunto'] } = useQuery({
+    queryKey: ['ensemble-plants', activeEnsemble?.ensemble_name, selectedIdOns],
+    queryFn: () =>
+      activeEnsemble?.ensemble_name
+        ? fetchEnsemblePlants(activeEnsemble.ensemble_name, selectedIdOns || undefined)
+        : Promise.resolve(['Média do Conjunto']),
+    enabled: !!activeEnsemble?.ensemble_name,
+  });
+
+  useEffect(() => {
+    setSelectedPlant('Média do Conjunto');
+  }, [selectedIdOns]);
+
   // 8. Fetch Time Series (com vento medido dos anemômetros da usina ONS EOL)
   const { data: timeseriesData, isLoading: isLoadingSeries } = useQuery({
     queryKey: [
@@ -279,6 +295,7 @@ export const App: React.FC = () => {
       selectedNode?.latitude,
       selectedNode?.longitude,
       activeEnsemble?.ensemble_name,
+      selectedPlant,
       startPeriod,
       endPeriod,
       aggregation,
@@ -291,6 +308,7 @@ export const App: React.FC = () => {
             latitude: selectedNode.latitude,
             longitude: selectedNode.longitude,
             ensemble_name: activeEnsemble?.ensemble_name,
+            plant_name: selectedPlant,
             start_year: startYear,
             end_year: endYear,
             start_month: startPeriod,
@@ -311,6 +329,7 @@ export const App: React.FC = () => {
       selectedNode?.longitude,
       activeEnsemble?.ensemble_name,
       selectedIdOns,
+      selectedPlant,
       startPeriod,
       endPeriod,
       correlationAgg,
@@ -324,6 +343,7 @@ export const App: React.FC = () => {
             longitude: selectedNode.longitude,
             ensemble_name: activeEnsemble.ensemble_name,
             id_ons: selectedIdOns || undefined,
+            plant_name: selectedPlant,
             start_year: startYear,
             end_year: endYear,
             start_month: startPeriod,
@@ -684,6 +704,9 @@ export const App: React.FC = () => {
                     model={selectedNode?.model || 'ERA5'}
                     aggregation={aggregation}
                     onChangeAggregation={(agg) => setAggregation(agg)}
+                    availablePlants={timeseriesData?.available_plants || ensemblePlants}
+                    selectedPlant={selectedPlant}
+                    onSelectPlant={(p) => setSelectedPlant(p)}
                     isLoading={isLoadingSeries}
                   />
                 )}
@@ -697,6 +720,9 @@ export const App: React.FC = () => {
                     ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
                     aggregation={correlationAgg}
                     onChangeAggregation={(agg) => setCorrelationAgg(agg)}
+                    availablePlants={correlationData?.available_plants || ensemblePlants}
+                    selectedPlant={selectedPlant}
+                    onSelectPlant={(p) => setSelectedPlant(p)}
                     isLoading={isLoadingCorrelation}
                   />
                 )}

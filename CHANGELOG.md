@@ -4,6 +4,23 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.5.0] - 2026-09-07
+
+### ✨ Persistência Incremental Mês a Mês & Decomposição Multi-Usina com Flag de Vento Inválido
+- **Catálogo de Reanálise Persistente em DuckDB & Download Incremental Mês a Mês**:
+  - Criado o catálogo `data/reanalysis_catalog.duckdb` gerenciado por `src/database/reanalysis_catalog.py`, registrando metadados de todos os nós de reanálise já processados (modelo, nó, coordenadas, intervalo temporal `min_timestamp` e `max_timestamp`, registros, caminho e tamanho).
+  - Implementada sincronização incremental inteligente em [`src/etl/era5_client.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/era5_client.py) e [`src/etl/merra2_client.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/merra2_client.py): quando o usuário acessa um conjunto cujo nó de reanálise já possui base histórica (ex: 30 anos), o sistema detecta a data máxima existente e baixa **apenas o delta do novo mês** (~744 horas em vez de 268.800 horas), concatenando e salvando sem redundância em menos de 1 segundo.
+- **Decomposição por Usina Física (`nom_usina`) no Conjunto Eólico**:
+  - Esclarecida a granularidade do ONS EOL Detailed: um conjunto eólico (ex: *Caetité 123*) é composto por $N$ usinas físicas (ex: *Caetité 1*, *Caetité 2*, *Caetité 3*), cada qual com anemômetros próprios em suas turbinas.
+  - Implementado endpoint `GET /api/reanalysis/plants` e suporte em `fetch_ensemble_measured_series`, permitindo consultar tanto a média ponderada do conjunto quanto cada usina individualmente.
+  - Em [`TimeSeriesChart.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/TimeSeriesChart.tsx), cada usina individual é plotada com cores distintas e linhas tracejadas, além da curva principal em verde esmeralda.
+  - Em [`LinearCorrelationChart.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/LinearCorrelationChart.tsx), foi adicionado um seletor de usinas (`Usina: [ Média do Conjunto | Caetité 1 | Caetité 2 | ... ]`), permitindo calibrar o modelo MCP para usinas específicas do parque.
+- **Eixo Y Secundário para Taxa de Dado de Vento Inválido (`flg_dadoventoinvalido`)**:
+  - Adicionado eixo Y direito secundário (0% a 100%) no gráfico de séries temporais para plotar `flg_dadoventoinvalido` (indicador de falha/congelamento/defeito no anemômetro do aerogerador reportado ao ONS).
+  - Exibição como histograma de barras verticais semitransparentes em vermelho coral (`#f43f5e`), permitindo auditar a confiabilidade do sinal de vento medido sem poluir as curvas de velocidade em m/s.
+
+---
+
 ## [1.4.1] - 2026-09-07
 
 ### ✨ Resoluções Semanal e Mensal na Correlação Linear MCP

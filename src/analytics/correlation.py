@@ -15,6 +15,7 @@ def compute_reanalysis_measured_correlation(
     reanalysis_df: pl.DataFrame | None,
     measured_df: pl.DataFrame | None,
     aggregation: str = "hourly",
+    plant_name: str | None = None,
     max_scatter_points: int = 4000,
 ) -> dict[str, Any] | None:
     """Calcula a correlação linear concomitante (Measure-Correlate-Predict / MCP)
@@ -25,6 +26,22 @@ def compute_reanalysis_measured_correlation(
     if len(reanalysis_df) == 0 or len(measured_df) == 0:
         return None
 
+    # Decomposição de usinas disponíveis
+    available_plants: list[str] = ["Média do Conjunto"]
+    active_m_df = measured_df
+    target_plant = plant_name or "Média do Conjunto"
+
+    if "nom_usina" in measured_df.columns:
+        p_list = [p for p in measured_df["nom_usina"].unique().to_list() if p != "Média do Conjunto"]
+        available_plants = ["Média do Conjunto"] + sorted(p_list)
+        if target_plant in available_plants:
+            active_m_df = measured_df.filter(pl.col("nom_usina") == target_plant)
+        else:
+            active_m_df = measured_df.filter(pl.col("nom_usina") == "Média do Conjunto")
+
+    if len(active_m_df) == 0:
+        active_m_df = measured_df
+
     # Normalizar timestamps para pareamento concomitante
     if aggregation == "monthly":
         r_clean = (
@@ -33,7 +50,7 @@ def compute_reanalysis_measured_correlation(
             .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
         )
         m_clean = (
-            measured_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m").alias("time_key"))
+            active_m_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m").alias("time_key"))
             .group_by("time_key")
             .agg(pl.col("wind_speed_measured").mean().alias("wind_measured"))
         )
@@ -46,7 +63,7 @@ def compute_reanalysis_measured_correlation(
             .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
         )
         m_clean = (
-            measured_df.with_columns(
+            active_m_df.with_columns(
                 pl.col("timestamp").dt.truncate("1w").dt.strftime("%Y-%m-%d").alias("time_key")
             )
             .group_by("time_key")
@@ -59,7 +76,7 @@ def compute_reanalysis_measured_correlation(
             .agg(pl.col("wind_speed_100m").mean().alias("wind_reanalysis"))
         )
         m_clean = (
-            measured_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m-%d").alias("time_key"))
+            active_m_df.with_columns(pl.col("timestamp").dt.strftime("%Y-%m-%d").alias("time_key"))
             .group_by("time_key")
             .agg(pl.col("wind_speed_measured").mean().alias("wind_measured"))
         )
@@ -68,7 +85,7 @@ def compute_reanalysis_measured_correlation(
         r_clean = reanalysis_df.with_columns(
             pl.col("timestamp").dt.strftime("%Y-%m-%d %H:%M").alias("time_key")
         ).select(["time_key", pl.col("wind_speed_100m").alias("wind_reanalysis")])
-        m_clean = measured_df.with_columns(
+        m_clean = active_m_df.with_columns(
             pl.col("timestamp").dt.strftime("%Y-%m-%d %H:%M").alias("time_key")
         ).select(["time_key", pl.col("wind_speed_measured").alias("wind_measured")])
 
@@ -161,6 +178,8 @@ def compute_reanalysis_measured_correlation(
     return {
         "n_samples": n_samples,
         "aggregation": aggregation,
+        "plant_name": target_plant,
+        "available_plants": available_plants,
         "pearson_r": round(r_val, 4),
         "r_squared": round(r_squared, 4),
         "slope": round(slope, 4),

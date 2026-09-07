@@ -9,13 +9,14 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import polars as pl
 
 from src.core.config import settings
+from src.database.reanalysis_catalog import upsert_node_record
 
 logger = logging.getLogger("merra2_client")
 
@@ -26,6 +27,18 @@ def _get_ssl_context() -> ssl.SSLContext:
     ctx.check_hostname = False
     ctx.verify_mode = ssl.CERT_NONE
     return ctx
+
+
+def find_existing_merra2_file(lat: float, lon: float) -> Path | None:
+    """Localiza qualquer arquivo Parquet existente para as coordenadas exatas da grade MERRA-2."""
+    settings.REANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+    pattern = f"merra2_*_{lat:.4f}_{lon:.4f}_*.parquet"
+    matches = sorted(
+        settings.REANALYSIS_DIR.glob(pattern),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    return matches[0] if matches else None
 
 
 def get_merra2_cache_path(node_id: str, lat: float, lon: float, start_year: int, end_year: int) -> Path:
@@ -95,25 +108,146 @@ def fetch_and_cache_merra2(
     end_year: int = 2026,
     force: bool = False,
 ) -> Path:
-    """Baixa e processa série histórica do MERRA-2 via NASA POWER, extrapolando vento para 100m."""
+    """Baixa e processa série histórica do MERRA-2 com suporte a append incremental."""
     cache_path = get_merra2_cache_path(node_id, lat, lon, start_year, end_year)
+    existing_file = find_existing_merra2_file(lat, lon)
+    today_dt = datetime.now()
+    today_fmt = today_dt.strftime("%Y%m%d")
+    target_end_dt = min(datetime(end_year, 12, 31), today_dt)
+    target_end_fmt = target_end_dt.strftime("%Y%m%d")
+    earliest_nasa_hourly = "20010101"
 
-    if cache_path.exists() and not force:
-        logger.info(f"Série MERRA-2 já em cache: {cache_path}")
-        return cache_path
+    # 1. Se já existe arquivo Parquet e não é force, verifica se podemos reaproveitar ou fazer incremento delta
+    if existing_file and existing_file.exists() and not force:
+        try:
+            df_existing = pl.read_parquet(existing_file)
+            if len(df_existing) > 0:
+                max_ts = df_existing["timestamp"].max()
+                min_ts = df_existing["timestamp"].min()
+                max_ts_fmt = max_ts.strftime("%Y%m%d")
 
+                if max_ts_fmt >= target_end_fmt:
+                    logger.info(f"Série MERRA-2 já em cache e 100% atualizada até {max_ts_fmt}: {existing_file}")
+                    upsert_node_record(
+                        model="MERRA-2",
+                        node_id=node_id,
+                        lat=lat,
+                        lon=lon,
+                        min_timestamp=min_ts,
+                        max_timestamp=max_ts,
+                        total_records=len(df_existing),
+                        file_path=existing_file,
+                        file_size_mb=existing_file.stat().st_size / (1024 * 1024),
+                    )
+                    return existing_file
+
+                # 2. Incremento Delta
+                with _merra2_download_lock:
+                    inc_start_dt = max_ts + timedelta(days=1)
+                    inc_start_fmt = inc_start_dt.strftime("%Y%m%d")
+
+                    if inc_start_fmt <= target_end_fmt:
+                        logger.info(
+                            f"Base MERRA-2 existente até {max_ts_fmt}. Baixando DELTA de {inc_start_fmt} a {target_end_fmt}..."
+                        )
+                        delta_params = fetch_nasa_power_merra2_chunk(lat, lon, inc_start_fmt, target_end_fmt)
+                        d_ws50 = delta_params.get("WS50M", {})
+                        d_ws10 = delta_params.get("WS10M", {})
+                        d_wd50 = delta_params.get("WD50M", {})
+                        d_wd10 = delta_params.get("WD10M", {})
+                        d_ps = delta_params.get("PS", {})
+                        d_t2m = delta_params.get("T2M", {})
+
+                        d_times = sorted(d_ws50.keys())
+                        if d_times:
+                            d_timestamps = []
+                            d_ws100_list = []
+                            d_ws10_list = []
+                            d_wd100_list = []
+                            d_wd10_list = []
+                            d_ps_list = []
+                            d_t2m_list = []
+
+                            for t_str in d_times:
+                                try:
+                                    dt = datetime.strptime(t_str, "%Y%m%d%H")
+                                except ValueError:
+                                    continue
+
+                                v50 = d_ws50.get(t_str)
+                                v10 = d_ws10.get(t_str)
+                                if v50 is not None and v50 >= 0:
+                                    if v10 is not None and v10 > 0.1 and v50 > 0.1:
+                                        alpha = math.log(v50 / v10) / math.log(50.0 / 10.0)
+                                        alpha = max(0.05, min(alpha, 0.45))
+                                    else:
+                                        alpha = 0.143
+                                    v100 = round(v50 * ((100.0 / 50.0) ** alpha), 2)
+                                else:
+                                    v100 = 0.0
+
+                                d_timestamps.append(dt)
+                                d_ws100_list.append(v100)
+                                d_ws10_list.append(float(v10) if v10 is not None and v10 >= 0 else 0.0)
+                                d_wd100_list.append(float(d_wd50.get(t_str, 0.0)))
+                                d_wd10_list.append(float(d_wd10.get(t_str, 0.0)))
+                                d_ps_list.append(float(d_ps.get(t_str, 1013.25)))
+                                d_t2m_list.append(float(d_t2m.get(t_str, 25.0)))
+
+                            delta_df = pl.DataFrame(
+                                {
+                                    "timestamp": d_timestamps,
+                                    "wind_speed_100m": d_ws100_list,
+                                    "wind_speed_10m": d_ws10_list,
+                                    "wind_direction_100m": d_wd100_list,
+                                    "wind_direction_10m": d_wd10_list,
+                                    "surface_pressure_hpa": d_ps_list,
+                                    "temperature_2m_c": d_t2m_list,
+                                    "node_id": [node_id] * len(d_timestamps),
+                                    "model": ["MERRA-2"] * len(d_timestamps),
+                                    "latitude": [lat] * len(d_timestamps),
+                                    "longitude": [lon] * len(d_timestamps),
+                                }
+                            )
+                            combined_df = (
+                                pl.concat([df_existing, delta_df])
+                                .unique(subset=["timestamp"])
+                                .sort("timestamp")
+                            )
+                            combined_df.write_parquet(cache_path)
+                            if existing_file != cache_path and existing_file.exists():
+                                existing_file.unlink(missing_ok=True)
+
+                            c_min = combined_df["timestamp"].min()
+                            c_max = combined_df["timestamp"].max()
+                            file_mb = cache_path.stat().st_size / (1024 * 1024)
+                            upsert_node_record(
+                                model="MERRA-2",
+                                node_id=node_id,
+                                lat=lat,
+                                lon=lon,
+                                min_timestamp=c_min,
+                                max_timestamp=c_max,
+                                total_records=len(combined_df),
+                                file_path=cache_path,
+                                file_size_mb=file_mb,
+                            )
+                            logger.info(
+                                f"Série MERRA-2 incrementada com sucesso! +{len(delta_df)} horas adicionadas. Total: {len(combined_df)} horas."
+                            )
+                            return cache_path
+        except Exception as e:
+            logger.warning(f"Erro ao verificar incremento MERRA-2 ({e}). Procedendo com download completo...")
+
+    # 3. Download completo
     with _merra2_download_lock:
         if cache_path.exists() and not force:
             return cache_path
 
         logger.info(
-            f"Iniciando download da série temporal MERRA-2 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
+            f"Iniciando download completo da série temporal MERRA-2 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
         )
 
-        today_fmt = datetime.now().strftime("%Y%m%d")
-        earliest_nasa_hourly = "20010101"
-
-        # NASA POWER aceita intervalos de até 5 anos por requisição horária (dados disponíveis a partir de 2001)
         chunk_size_years = 5
         all_dfs: list[pl.DataFrame] = []
 
@@ -141,63 +275,51 @@ def fetch_and_cache_merra2(
             ps_dict = params.get("PS", {})
             t2m_dict = params.get("T2M", {})
 
-            if not ws50_dict:
+            hourly_times = sorted(ws50_dict.keys())
+            if not hourly_times:
                 continue
 
-            timestamps: list[datetime] = []
-            ws50_list: list[float] = []
-            ws10_list: list[float] = []
-            ws100_list: list[float] = []
-            wd50_list: list[float] = []
-            wd10_list: list[float] = []
-            ps_list: list[float] = []
-            t2m_list: list[float] = []
+            timestamps = []
+            ws100_list = []
+            ws10_list = []
+            wd50_list = []
+            wd10_list = []
+            ps_list = []
+            t2m_list = []
 
-            for key, v50 in ws50_dict.items():
-                # Formato da chave da NASA: 'YYYYMMDDHH' (ex: '2023010100')
+            for t_str in hourly_times:
                 try:
-                    dt = datetime.strptime(key, "%Y%m%d%H")
-                except Exception:
+                    dt = datetime.strptime(t_str, "%Y%m%d%H")
+                except ValueError:
                     continue
 
-                v10 = ws10_dict.get(key, -999.0)
-                d50 = wd50_dict.get(key, -999.0)
-                d10 = wd10_dict.get(key, -999.0)
-                press = ps_dict.get(key, -999.0)
-                temp = t2m_dict.get(key, -999.0)
-
-                # Filtro de valores faltantes da NASA (-999.0)
-                if v50 < 0:
-                    v50 = 0.0
-                if v10 < 0:
-                    v10 = v50 * 0.75
-
-                # Extrapolação do cisalhamento do vento para 100m via lei potencial:
-                # alpha = ln(v50/v10) / ln(50/10)
-                if v50 > 0.1 and v10 > 0.1:
-                    alpha = max(0.05, min(0.40, math.log(v50 / v10) / math.log(50.0 / 10.0)))
+                v50 = ws50_dict.get(t_str)
+                v10 = ws10_dict.get(t_str)
+                if v50 is not None and v50 >= 0:
+                    if v10 is not None and v10 > 0.1 and v50 > 0.1:
+                        alpha = math.log(v50 / v10) / math.log(50.0 / 10.0)
+                        alpha = max(0.05, min(alpha, 0.45))
+                    else:
+                        alpha = 0.143
+                    v100 = round(v50 * ((100.0 / 50.0) ** alpha), 2)
                 else:
-                    alpha = 0.143  # Coeficiente padrão de Hellmann
-
-                v100 = v50 * ((100.0 / 50.0) ** alpha)
+                    v100 = 0.0
 
                 timestamps.append(dt)
-                ws50_list.append(round(v50, 2))
-                ws10_list.append(round(v10, 2))
-                ws100_list.append(round(v100, 2))
-                wd50_list.append(round(d50 if d50 >= 0 else 0.0, 1))
-                wd10_list.append(round(d10 if d10 >= 0 else 0.0, 1))
-                ps_list.append(round(press * 10.0 if press > 0 else 1013.25, 1))  # kPa para hPa
-                t2m_list.append(round(temp, 1) if temp > -100 else 25.0)
+                ws100_list.append(v100)
+                ws10_list.append(float(v10) if v10 is not None and v10 >= 0 else 0.0)
+                wd50_list.append(float(wd50_dict.get(t_str, 0.0)))
+                wd10_list.append(float(wd10_dict.get(t_str, 0.0)))
+                ps_list.append(float(ps_dict.get(t_str, 1013.25)))
+                t2m_list.append(float(t2m_dict.get(t_str, 25.0)))
 
             n_rows = len(timestamps)
             chunk_df = pl.DataFrame(
                 {
                     "timestamp": timestamps,
                     "wind_speed_100m": ws100_list,
-                    "wind_speed_50m": ws50_list,
                     "wind_speed_10m": ws10_list,
-                    "wind_direction_50m": wd50_list,
+                    "wind_direction_100m": wd50_list,
                     "wind_direction_10m": wd10_list,
                     "surface_pressure_hpa": ps_list,
                     "temperature_2m_c": t2m_list,
@@ -213,10 +335,26 @@ def fetch_and_cache_merra2(
         if not all_dfs:
             raise ValueError(f"Nenhum dado MERRA-2 retornado para o nó {node_id} ({lat}, {lon})")
 
-        final_df = pl.concat(all_dfs).sort("timestamp")
+        final_df = pl.concat(all_dfs).unique(subset=["timestamp"]).sort("timestamp")
         final_df.write_parquet(cache_path)
+
+        min_ts = final_df["timestamp"].min()
+        max_ts = final_df["timestamp"].max()
+        file_mb = cache_path.stat().st_size / (1024 * 1024)
+        upsert_node_record(
+            model="MERRA-2",
+            node_id=node_id,
+            lat=lat,
+            lon=lon,
+            min_timestamp=min_ts,
+            max_timestamp=max_ts,
+            total_records=len(final_df),
+            file_path=cache_path,
+            file_size_mb=file_mb,
+        )
+
         logger.info(
-            f"Série MERRA-2 salva em {cache_path} ({len(final_df)} registros, {cache_path.stat().st_size / 1024 / 1024:.2f} MB)"
+            f"Série MERRA-2 salva em {cache_path} ({len(final_df)} registros, {file_mb:.2f} MB)"
         )
         return cache_path
 
@@ -225,16 +363,19 @@ def load_merra2_series(
     node_id: str,
     lat: float,
     lon: float,
-    start_year: int = 1994,
-    end_year: int = 2024,
+    start_year: int = 1996,
+    end_year: int = 2026,
     auto_fetch: bool = False,
 ) -> pl.DataFrame | None:
-    """Carrega série temporal do MERRA-2 a partir do cache Parquet. Não efetua download automático a menos que solicitado."""
+    """Carrega série temporal do MERRA-2 a partir do cache Parquet com resolução de arquivos existentes."""
     cache_path = get_merra2_cache_path(node_id, lat, lon, start_year, end_year)
     if not cache_path.exists():
+        existing_file = find_existing_merra2_file(lat, lon)
+        if existing_file and existing_file.exists():
+            return pl.read_parquet(existing_file)
         if auto_fetch:
             fetch_and_cache_merra2(node_id, lat, lon, start_year, end_year)
-        else:
-            return None
+            if cache_path.exists():
+                return pl.read_parquet(cache_path)
+        return None
     return pl.read_parquet(cache_path)
-
