@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import ReactECharts from 'echarts-for-react';
+import { CalendarRange } from 'lucide-react';
 import { TimeSeriesItem } from '../types';
 
 interface TimeSeriesChartProps {
@@ -35,6 +36,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
   onSelectPlant,
   isLoading,
 }) => {
+  const echartsRef = useRef<ReactECharts>(null);
   const plantNames = useMemo(() => {
     const set = new Set<string>();
     for (const d of data) {
@@ -62,6 +64,59 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
       ? `Vento Medido (${selectedPlant})`
       : 'Vento Medido (Média Conjunto)';
   }, [selectedPlant]);
+
+  const commonPeriod = useMemo(() => {
+    let firstIdx = -1;
+    let lastIdx = -1;
+
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
+      const hasVal =
+        (d.speed_measured !== null && d.speed_measured !== undefined) ||
+        (d.plant_speeds && Object.values(d.plant_speeds).some((v) => v !== null && v !== undefined));
+      if (hasVal) {
+        if (firstIdx === -1) firstIdx = i;
+        lastIdx = i;
+      }
+    }
+
+    if (firstIdx === -1 || lastIdx === -1 || data.length === 0) return null;
+
+    return {
+      firstIdx,
+      lastIdx,
+      startDate: data[firstIdx].time,
+      endDate: data[lastIdx].time,
+    };
+  }, [data]);
+
+  const handleZoomCommonPeriod = () => {
+    if (!commonPeriod || data.length <= 1) return;
+    const echartsInstance = echartsRef.current?.getEchartsInstance();
+    if (!echartsInstance) return;
+
+    const total = data.length;
+    // Margem suave de 1.5% para visualização completa dos extremos
+    const pad = Math.max(1, Math.round((commonPeriod.lastIdx - commonPeriod.firstIdx) * 0.015));
+    const startIdx = Math.max(0, commonPeriod.firstIdx - pad);
+    const endIdx = Math.min(total - 1, commonPeriod.lastIdx + pad);
+
+    const startPct = Math.max(0, (startIdx / (total - 1)) * 100);
+    const endPct = Math.min(100, (endIdx / (total - 1)) * 100);
+
+    echartsInstance.dispatchAction({
+      type: 'dataZoom',
+      dataZoomIndex: 0,
+      start: startPct,
+      end: endPct,
+    });
+    echartsInstance.dispatchAction({
+      type: 'dataZoom',
+      dataZoomIndex: 1,
+      start: startPct,
+      end: endPct,
+    });
+  };
 
   const legendItems = useMemo(() => {
     const items = ['Vento a 100m (Hub)'];
@@ -247,11 +302,6 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
     };
   }, [data, nodeTitle, model, aggregation, selectedPlant, plantNames]);
 
-  const hasMeasuredData = useMemo(
-    () => data.some((d) => d.speed_measured !== null && d.speed_measured !== undefined),
-    [data]
-  );
-
   return (
     <div className="bg-zinc-900/90 border border-zinc-800 rounded-2xl p-5 shadow-xl space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-800 pb-3">
@@ -261,12 +311,6 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
             <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
               {model}
             </span>
-            {hasMeasuredData && (
-              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-medium flex items-center gap-1.5 shadow-sm">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Vento Anemômetro ONS Concomitante
-              </span>
-            )}
           </h4>
           <p className="text-xs text-zinc-400 mt-0.5">
             Velocidade média a 100m (rotor), anemômetros reais das usinas do parque e taxa de dado inválido no eixo secundário
@@ -289,6 +333,23 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
                 ))}
               </select>
             </div>
+          )}
+
+          {/* Botão Período Comum (zoom no intervalo concorrente da torre/anemômetro e reanálise) */}
+          {hasMeasured && (
+            <button
+              type="button"
+              onClick={handleZoomCommonPeriod}
+              title={
+                commonPeriod
+                  ? `Zoom no período concorrente (${commonPeriod.startDate} até ${commonPeriod.endDate})`
+                  : 'Focar período concorrente entre medição de torre e reanálise'
+              }
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:border-emerald-500/50 transition-all shadow-sm active:scale-95 cursor-pointer"
+            >
+              <CalendarRange className="w-3.5 h-3.5" />
+              <span>Período Comum</span>
+            </button>
           )}
 
           <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs">
@@ -331,6 +392,7 @@ export const TimeSeriesChart: React.FC<TimeSeriesChartProps> = ({
           style={{ height: `${dynamicChartHeight}px` }}
         >
           <ReactECharts
+            ref={echartsRef}
             option={option}
             style={{ height: '100%', width: '100%' }}
             opts={{ renderer: 'canvas' }}
