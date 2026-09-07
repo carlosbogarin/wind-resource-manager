@@ -4,6 +4,34 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.6.0] - 2026-09-07
+
+### ✨ Módulo "Reanálises - Manual" & Extrapolação Espacial Vetorial Horizontal (Padrão Vortex FdC)
+- **Novo Módulo Independente "Reanálises - Manual" & Renomeação para "Reanálises - ONS"**:
+  - Eliminação da dependência exclusiva de seleção de conjuntos eólicos do ONS para obtenção de reanálises históricas de 30 anos.
+  - Navegação lateral na [`Sidebar.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/Sidebar.tsx) atualizada com os módulos dedicados: **"Reanálises - ONS"** e **"Reanálises - Manual"**.
+  - Novo seletor [`ManualCoordinatesSelector.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/ManualCoordinatesSelector.tsx) com campos numéricos de Latitude, Longitude, Nome do Ponto/Mastro, presets geográficos e seleção de janela temporal de análise.
+  - **Interatividade Total com o Mapa Leaflet**: O usuário pode clicar diretamente em qualquer ponto do mapa para reposicionar as coordenadas do ponto alvo e calcular imediatamente os 4 nós mais próximos de ERA5 e MERRA-2.
+- **Extrapolação Espacial Vetorial Horizontal (Padrão Vortex FdC - Vortex SERIES)**:
+  - Disponível como opção para **ambos os módulos** ("Reanálises - ONS" extrapolando até a SE Coletora do parque e "Reanálises - Manual" extrapolando até a coordenada definida pelo usuário). **Desativada por padrão**, conforme solicitação.
+  - Implementação completa em [`src/analytics/spatial_interpolation.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/analytics/spatial_interpolation.py) seguindo as melhores práticas mundiais da *Vortex Factoria de Calculs* (https://vortexfdc.com/):
+    1. Decomposição horária dos ventos de cada um dos 4 nós da grade em componentes ortogonais: zonal ($u = -S \cdot \sin(\theta)$) e meridional ($v = -S \cdot \cos(\theta)$), impedindo anomalias de média escalar angular (ex: ventos de 359° e 1° resultando em 180°);
+    2. Ponderação pelo Inverso da Distância Ponderada Geodésica esférica ($IDW$ com $p=2$);
+    3. Interpolação espacial independente das componentes vetoriais $u$ e $v$;
+    4. Reconstituição física vetorial da velocidade e direção do vento na coordenada alvo ($V = \sqrt{u^2 + v^2}$ e $\theta = \text{atan2}(-u, -v)$);
+    5. Interpolação das variáveis meteorológicas de superfície (temperatura a 2m, vento a 10m e pressão atmosférica).
+- **Comparativo Pré-Extrapolação e Card Interativo**:
+  - Criado o componente [`VortexExtrapolationCard.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/VortexExtrapolationCard.tsx), permitindo ao usuário comparar as distâncias e pesos dos nós mais próximos de ERA5 versus MERRA-2 antes de escolher o modelo base da extrapolação.
+  - Botão de execução sob demanda que baixa eventuais nós faltantes, calcula as séries horárias, salva em arquivo Parquet colunar e registra no catálogo DuckDB (`data/reanalysis/vortex_{model}_{lat}_{lon}_{years}.parquet`).
+  - Alternador de visualização (Toggle) que permite trocar entre o **Ponto Extrapolado (Sintetizado)** e os **Nós Individuais da Grade**, com atualização dinâmica de todos os gráficos (Séries Temporais, Rosa dos Ventos, Weibull, Perfis Diurnos/Sazonais, MCP) e exportação em CSV/Parquet.
+- **Endpoints de Backend & Testes**:
+  - Adicionado `GET /api/reanalysis/nodes-by-coords` para consulta de nós a partir de coordenadas avulsas.
+  - Adicionado `POST /api/reanalysis/interpolate` para sintetizar a série temporal vetorial.
+  - Atualizadas rotas `/timeseries`, `/analytics`, `/correlation`, `/export/csv` e `/export/parquet` para suportar séries sintéticas `VORTEX-*`.
+  - Adicionados testes unitários automatizados em `tests/test_backend.py` validando os endpoints e a trigonometria vetorial física.
+
+---
+
 ## [1.5.0] - 2026-09-07
 
 ### ✨ Persistência Incremental Mês a Mês & Decomposição Multi-Usina com Flag de Vento Inválido

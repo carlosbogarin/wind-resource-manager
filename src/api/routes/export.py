@@ -6,6 +6,11 @@ import logging
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response, StreamingResponse
 
+from src.analytics.spatial_interpolation import (
+    find_existing_vortex_file,
+    get_vortex_cache_path,
+    load_vortex_series,
+)
 from src.etl.date_range_checker import filter_df_by_period
 from src.etl.era5_client import get_era5_cache_path, load_era5_series
 from src.etl.merra2_client import get_merra2_cache_path, load_merra2_series
@@ -27,10 +32,15 @@ def export_csv(
 ):
     """Exporta a série temporal horária completa em formato CSV."""
     try:
-        if model == "ERA5":
+        if node_id.startswith("VORTEX"):
+            df = load_vortex_series(model, latitude, longitude, start_year, end_year)
+        elif model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        if df is None or len(df) == 0:
+            raise HTTPException(status_code=404, detail="Dados não encontrados para exportação.")
 
         df = filter_df_by_period(df, start_month, end_month)
 
@@ -45,6 +55,8 @@ def export_csv(
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Erro ao exportar CSV: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -62,7 +74,15 @@ def export_parquet(
 ):
     """Exporta o arquivo colunar Parquet de alta densidade."""
     try:
-        if model == "ERA5":
+        if node_id.startswith("VORTEX"):
+            path = get_vortex_cache_path(model, latitude, longitude, start_year, end_year)
+            if not path.exists():
+                existing = find_existing_vortex_file(model, latitude, longitude)
+                if existing:
+                    path = existing
+                else:
+                    raise HTTPException(status_code=404, detail="Arquivo Parquet extrapolado não encontrado.")
+        elif model == "ERA5":
             path = get_era5_cache_path(node_id, latitude, longitude, start_year, end_year)
             if not path.exists():
                 load_era5_series(node_id, latitude, longitude, start_year, end_year)
@@ -70,6 +90,9 @@ def export_parquet(
             path = get_merra2_cache_path(node_id, latitude, longitude, start_year, end_year)
             if not path.exists():
                 load_merra2_series(node_id, latitude, longitude, start_year, end_year)
+
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Arquivo Parquet não encontrado.")
 
         filename = path.name
         with open(path, "rb") as f:

@@ -81,3 +81,29 @@ class AnalyticsResponse(BaseModel):
     diurnal_profile: list[dict[str, Any]]
     monthly_seasonality: list[dict[str, Any]]
     ons_correlation: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class InterpolationRequest(BaseModel):
+    model: Literal["ERA5", "MERRA-2"] = Field(..., description="Modelo base para os 4 nós")
+    latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude da coordenada alvo")
+    longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude da coordenada alvo")
+    site_name: str = Field(default="Ponto Alvo", description="Nome descritivo do ponto / mastro")
+    start_year: int = Field(default=1996, ge=1980, le=2026)
+    end_year: int = Field(default=2026, ge=1980, le=2026)
+    force: bool = Field(default=False)
+
+
+class InterpolationResponse(BaseModel):
+    status: str
+    model: str
+    synthetic_node_id: str
+    site_name: str
+    latitude: float
+    longitude: float
+    records_count: int
+    file_path: str
+    file_size_mb: float
+    cached: bool
+    weights: dict[str, float]
+    bounding_nodes: list[dict[str, Any]]
+    message: str

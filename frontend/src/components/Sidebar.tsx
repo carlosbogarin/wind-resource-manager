@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   Wind,
   Layers,
@@ -7,11 +6,12 @@ import {
   ExternalLink,
   X,
   Compass,
+  MapPin,
   Activity,
   Zap,
 } from 'lucide-react';
 
-export type ActiveModule = 'reanalysis' | 'dossier' | 'methodology';
+export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'dossier' | 'methodology';
 
 interface SidebarProps {
   activeModule: ActiveModule;
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span className={`text-[10px] font-mono font-medium px-1 py-0.5 rounded leading-none ${
                   isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
                 }`}>
-                  v1.5.0
+                  v1.6.0
                 </span>
               </div>
               <span className="text-[10px] font-semibold text-cyan-600 dark:text-cyan-400 leading-tight">
@@ -102,7 +102,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Módulos da Plataforma
           </div>
 
-          {/* Module 1: Reanálises (Visão Principal) */}
+          {/* Module 1: Reanálises - ONS */}
           <button
             onClick={() => handleSelect('reanalysis')}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
@@ -115,9 +115,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <Compass className="w-4 h-4 shrink-0" />
             <div className="flex flex-col">
-              <span>Reanálises</span>
+              <span>Reanálises - ONS</span>
               <span className={`text-[10px] font-normal ${activeModule === 'reanalysis' ? 'text-cyan-100' : 'text-zinc-500'}`}>
-                ERA5 & MERRA-2 (30 Anos)
+                Conjuntos Eólicos ONS
+              </span>
+            </div>
+          </button>
+
+          {/* Module 2: Reanálises - Manual */}
+          <button
+            onClick={() => handleSelect('reanalysis_manual')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all text-left ${
+              activeModule === 'reanalysis_manual'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-lg shadow-emerald-600/30'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <MapPin className="w-4 h-4 shrink-0" />
+            <div className="flex flex-col">
+              <span>Reanálises - Manual</span>
+              <span className={`text-[10px] font-normal ${activeModule === 'reanalysis_manual' ? 'text-emerald-100' : 'text-zinc-500'}`}>
+                Coordenadas & Mapa
               </span>
             </div>
           </button>

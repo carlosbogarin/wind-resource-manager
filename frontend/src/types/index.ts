@@ -34,7 +34,7 @@ export interface EnsembleDetail extends Ensemble {
 export interface ReanalysisNode {
   node_id: string;
   model: 'ERA5' | 'MERRA-2';
-  position: 'NW' | 'NE' | 'SW' | 'SE';
+  position: 'NW' | 'NE' | 'SW' | 'SE' | 'SYNTHETIC';
   latitude: number;
   longitude: number;
   distance_km: number;
@@ -42,6 +42,43 @@ export interface ReanalysisNode {
   cardinal_direction: string;
   weight: number;
   is_cached: boolean;
+  is_interpolated?: boolean;
+}
+
+export interface BoundingNodeInfo {
+  node_id: string;
+  position: string;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  bearing_deg: number;
+  weight: number;
+}
+
+export interface InterpolationRequest {
+  model: 'ERA5' | 'MERRA-2';
+  latitude: number;
+  longitude: number;
+  site_name?: string;
+  start_year?: number;
+  end_year?: number;
+  force?: boolean;
+}
+
+export interface InterpolationResponse {
+  status: string;
+  model: string;
+  synthetic_node_id: string;
+  site_name: string;
+  latitude: number;
+  longitude: number;
+  records_count: number;
+  file_path: string;
+  file_size_mb: number;
+  cached: boolean;
+  weights: Record<string, number>;
+  bounding_nodes: BoundingNodeInfo[];
+  message: string;
 }
 
 export interface SubstationGeo {

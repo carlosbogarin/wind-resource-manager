@@ -4,6 +4,8 @@ import {
   fetchCompanies,
   fetchEnsembles,
   fetchNodes,
+  fetchNodesByCoordinates,
+  runSpatialInterpolation,
   fetchTimeSeries,
   fetchAnalytics,
   fetchCorrelation,
@@ -16,6 +18,8 @@ import { Sidebar, ActiveModule } from './components/Sidebar';
 import { Header } from './components/Header';
 import { CompanySelector } from './components/CompanySelector';
 import { EnsembleSelector } from './components/EnsembleSelector';
+import { ManualCoordinatesSelector } from './components/ManualCoordinatesSelector';
+import { VortexExtrapolationCard } from './components/VortexExtrapolationCard';
 import { MapView } from './components/MapView';
 import { NodesGridTable } from './components/NodesGridTable';
 import { TimeSeriesChart } from './components/TimeSeriesChart';
@@ -83,6 +87,23 @@ export const App: React.FC = () => {
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const autoDownloadedEnsembleRef = React.useRef<string | null>(null);
 
+  // 3.1. Manual Coordinates State (Module: Reanálises - Manual)
+  const [manualLat, setManualLat] = useState<number>(-14.1028);
+  const [manualLon, setManualLon] = useState<number>(-42.6094);
+  const [manualSiteName, setManualSiteName] = useState<string>('Caetité (Ponto Manual)');
+
+  // 3.2. Vortex Extrapolation State (Available for both ONS and Manual modules)
+  const [extrapolationDetails, setExtrapolationDetails] = useState<{
+    recordsCount?: number;
+    fileSizeMb?: number;
+    cached?: boolean;
+    weights?: Record<string, number>;
+  } | null>(null);
+  const [isExtrapolatedActive, setIsExtrapolatedActive] = useState<boolean>(false);
+  const [savedGridNode, setSavedGridNode] = useState<ReanalysisNode | null>(null);
+  const [extrapolatedModel, setExtrapolatedModel] = useState<'ERA5' | 'MERRA-2'>('ERA5');
+  const [hasExtrapolatedSeries, setHasExtrapolatedSeries] = useState<boolean>(false);
+
   // Anos inteiros derivados para carregamento de arquivos e queries base
   const startYear = parseInt(startPeriod.split('-')[0]) || 1996;
   const endYear = parseInt(endPeriod.split('-')[0]) || 2026;
@@ -147,12 +168,27 @@ export const App: React.FC = () => {
     }
   }, [ensembles]);
 
-  // 6. Fetch Grid Nodes for Selected Ensemble
+  // 6. Fetch Grid Nodes for Selected Ensemble (ONS)
   const { data: nodesData, isLoading: isLoadingNodes } = useQuery({
     queryKey: ['nodes', selectedIdOns],
     queryFn: () => (selectedIdOns ? fetchNodes(selectedIdOns) : Promise.resolve(null)),
     enabled: !!selectedIdOns,
   });
+
+  // 6.1. Fetch Grid Nodes for Manual Coordinates (Reanálises - Manual)
+  const {
+    data: manualNodesData,
+    isLoading: isLoadingManualNodes,
+    refetch: refetchManualNodes,
+  } = useQuery({
+    queryKey: ['nodes-manual', manualLat, manualLon, manualSiteName],
+    queryFn: () => fetchNodesByCoordinates(manualLat, manualLon, manualSiteName),
+    enabled: activeModule === 'reanalysis_manual',
+  });
+
+  const isManualModule = activeModule === 'reanalysis_manual';
+  const currentNodesData = isManualModule ? manualNodesData : nodesData;
+  const currentSubstation = currentNodesData?.substation || null;
 
   const [downloadingNodeId, setDownloadingNodeId] = useState<string | null>(null);
 
@@ -168,6 +204,7 @@ export const App: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['correlation'] });
       queryClient.invalidateQueries({ queryKey: ['nodes'] });
+      queryClient.invalidateQueries({ queryKey: ['nodes-manual'] });
     },
     onError: (err: any) => {
       setNotification({
@@ -205,25 +242,131 @@ export const App: React.FC = () => {
     );
   };
 
-  // Auto-seleciona e baixa automaticamente a reanálise mais próxima (entre os 8 nós) ao selecionar um conjunto
+  // 7.1. Spatial IDW Extrapolation Mutation (Vortex FdC Methodology)
+  const interpolateMutation = useMutation({
+    mutationFn: runSpatialInterpolation,
+    onSuccess: (data) => {
+      setNotification({
+        type: 'success',
+        text: `Extrapolação vetorial horizontal (${data.model}) calculada para ${data.site_name}: ${data.records_count.toLocaleString('pt-BR')} horas processadas.`,
+      });
+      setExtrapolationDetails({
+        recordsCount: data.records_count,
+        fileSizeMb: data.file_size_mb,
+        cached: data.cached,
+        weights: data.weights,
+      });
+      setExtrapolatedModel(data.model as 'ERA5' | 'MERRA-2');
+      setHasExtrapolatedSeries(true);
+
+      const synthNode: ReanalysisNode = {
+        node_id: data.synthetic_node_id,
+        model: data.model as 'ERA5' | 'MERRA-2',
+        position: 'SYNTHETIC',
+        latitude: data.latitude,
+        longitude: data.longitude,
+        distance_km: 0,
+        bearing_deg: 0,
+        cardinal_direction: 'Local',
+        weight: 1.0,
+        is_cached: true,
+        is_interpolated: true,
+      };
+
+      if (!isExtrapolatedActive && selectedNode && !selectedNode.is_interpolated) {
+        setSavedGridNode(selectedNode);
+      }
+      setSelectedNode(synthNode);
+      setIsExtrapolatedActive(true);
+
+      queryClient.invalidateQueries({ queryKey: ['timeseries'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
+      queryClient.invalidateQueries({ queryKey: ['correlation'] });
+    },
+    onError: (err: any) => {
+      setNotification({
+        type: 'error',
+        text: `Erro na extrapolação: ${err?.response?.data?.detail || err.message}`,
+      });
+    },
+  });
+
+  const handleRunExtrapolation = async (model: 'ERA5' | 'MERRA-2') => {
+    if (!currentSubstation) return;
+    setNotification({
+      type: 'info',
+      text: `Iniciando extrapolação espacial vetorial (${model}) para ${currentSubstation.ensemble_name}...`,
+    });
+    interpolateMutation.mutate({
+      model,
+      latitude: currentSubstation.latitude,
+      longitude: currentSubstation.longitude,
+      site_name: currentSubstation.ensemble_name,
+      start_year: startYear,
+      end_year: endYear,
+      force: false,
+    });
+  };
+
+  const handleToggleExtrapolated = (active: boolean) => {
+    setIsExtrapolatedActive(active);
+    if (active && currentSubstation) {
+      const synthNode: ReanalysisNode = {
+        node_id: `VORTEX-${extrapolatedModel}`,
+        model: extrapolatedModel,
+        position: 'SYNTHETIC',
+        latitude: currentSubstation.latitude,
+        longitude: currentSubstation.longitude,
+        distance_km: 0,
+        bearing_deg: 0,
+        cardinal_direction: 'Local',
+        weight: 1.0,
+        is_cached: true,
+        is_interpolated: true,
+      };
+      if (selectedNode && !selectedNode.is_interpolated) {
+        setSavedGridNode(selectedNode);
+      }
+      setSelectedNode(synthNode);
+    } else if (savedGridNode) {
+      setSelectedNode(savedGridNode);
+    } else if (currentNodesData) {
+      const all = [...currentNodesData.era5_nodes, ...currentNodesData.merra2_nodes];
+      const closest = [...all].sort((a, b) => a.distance_km - b.distance_km)[0];
+      if (closest) setSelectedNode(closest);
+    }
+  };
+
+  const handleMapClick = (lat: number, lon: number) => {
+    if (isManualModule) {
+      setManualLat(lat);
+      setManualLon(lon);
+      setNotification({
+        type: 'info',
+        text: `Coordenadas atualizadas pelo mapa: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+      });
+    }
+  };
+
+  // Auto-seleciona e baixa automaticamente a reanálise mais próxima no módulo ONS
   useEffect(() => {
-    if (nodesData && selectedIdOns) {
+    if (!isManualModule && nodesData && selectedIdOns) {
       const allNodes = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
       if (allNodes.length === 0) return;
 
-      // Ordenar por distância absoluta até a SE do conjunto eólico
       const closestNode = [...allNodes].sort((a, b) => a.distance_km - b.distance_km)[0];
 
       if (autoDownloadedEnsembleRef.current !== selectedIdOns) {
         autoDownloadedEnsembleRef.current = selectedIdOns;
         setSelectedNode(closestNode);
+        setIsExtrapolatedActive(false);
+        setHasExtrapolatedSeries(false);
+        setExtrapolationDetails(null);
 
-        // Se ainda não estiver em cache, dispara download imediato por padrão
         if (!closestNode.is_cached && !downloadMutation.isPending) {
           handleDownloadNode(closestNode);
         }
-      } else if (selectedNode) {
-        // Mantém atualizado o nó ativo
+      } else if (selectedNode && !selectedNode.is_interpolated) {
         const found = allNodes.find(
           (n) => n.node_id === selectedNode.node_id && n.model === selectedNode.model
         );
@@ -232,14 +375,29 @@ export const App: React.FC = () => {
         }
       }
     }
-  }, [nodesData, selectedIdOns]);
+  }, [isManualModule, nodesData, selectedIdOns]);
+
+  // Auto-seleciona nó mais próximo no módulo Manual
+  useEffect(() => {
+    if (isManualModule && manualNodesData) {
+      const allNodes = [...manualNodesData.era5_nodes, ...manualNodesData.merra2_nodes];
+      if (allNodes.length === 0) return;
+      const closest = [...allNodes].sort((a, b) => a.distance_km - b.distance_km)[0];
+      if (!selectedNode || !allNodes.some((n) => n.node_id === selectedNode.node_id)) {
+        setSelectedNode(closest);
+        setIsExtrapolatedActive(false);
+        setHasExtrapolatedSeries(false);
+        setExtrapolationDetails(null);
+      }
+    }
+  }, [isManualModule, manualNodesData]);
 
   const handleDownloadAllNodes = async () => {
-    if (!nodesData) return;
-    const all = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
+    if (!currentNodesData) return;
+    const all = [...currentNodesData.era5_nodes, ...currentNodesData.merra2_nodes];
     setNotification({
       type: 'info',
-      text: `Iniciando download sequencial dos 8 nós para ${nodesData.substation.ensemble_name}...`,
+      text: `Iniciando download sequencial dos 8 nós para ${currentNodesData.substation.ensemble_name}...`,
     });
     for (const node of all) {
       try {
@@ -262,6 +420,7 @@ export const App: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['analytics'] });
     queryClient.invalidateQueries({ queryKey: ['correlation'] });
     queryClient.invalidateQueries({ queryKey: ['nodes'] });
+    queryClient.invalidateQueries({ queryKey: ['nodes-manual'] });
     setNotification({
       type: 'success',
       text: `Download de todos os nós finalizado com sucesso!`,
@@ -437,130 +596,169 @@ export const App: React.FC = () => {
           )}
 
           {/* ======================================================== */}
-          {/* MODULE 1: REANÁLISES (VISÃO COMPLETA PRINCIPAL)           */}
+          {/* MODULE 1 & 2: REANÁLISES - ONS & REANÁLISES - MANUAL      */}
           {/* ======================================================== */}
-          {activeModule === 'reanalysis' && (
+          {(activeModule === 'reanalysis' || activeModule === 'reanalysis_manual') && (
             <div className="space-y-6">
-              {/* Top Controls: 2-Step Selector + Period (Z-Index alto para ficar na frente de todos os componentes) */}
-              <section className={`relative z-40 grid grid-cols-1 md:grid-cols-12 gap-4 border rounded-2xl p-5 shadow-lg backdrop-blur-sm ${
-                isLight ? 'bg-white/80 border-slate-200 shadow-slate-200/50' : 'bg-zinc-900/60 border-zinc-800/80 shadow-black/40'
-              }`}>
-                <div className="md:col-span-5 relative z-50">
-                  <CompanySelector
-                    companies={companies}
-                    selectedCompany={selectedCompany}
-                    onSelectCompany={(comp) => {
-                      setSelectedCompany(comp);
-                      setSelectedIdOns(null);
-                    }}
-                    isLoading={isLoadingCompanies}
-                  />
-                </div>
-
-                <div className="md:col-span-4 relative z-40">
-                  <EnsembleSelector
-                    ensembles={ensembles}
-                    selectedIdOns={selectedIdOns}
-                    onSelectEnsemble={(id) => setSelectedIdOns(id)}
-                    isLoading={isLoadingEnsembles}
-                    disabled={!selectedCompany}
-                  />
-                </div>
-
-                <div className="md:col-span-3 flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
-                      <span>
-                        Período ({(() => {
-                          const [sy, sm] = startPeriod.split('-').map(Number);
-                          const [ey, em] = endPeriod.split('-').map(Number);
-                          if (!sy || !ey) return '30 Anos';
-                          const months = (ey - sy) * 12 + ((em || 8) - (sm || 8));
-                          const y = Math.round((months / 12) * 10) / 10;
-                          return `${y} Anos`;
-                        })()})
-                      </span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (dateRangeData) {
-                          setStartPeriod(dateRangeData.start_year_month);
-                          setEndPeriod(dateRangeData.end_year_month);
-                        } else {
-                          setStartPeriod('1996-08');
-                          setEndPeriod('2026-08');
-                        }
+              {/* Top Controls: ONS Selectors OR Manual Coordinates Selector */}
+              {activeModule === 'reanalysis' ? (
+                /* Top Controls: 2-Step Selector + Period (Z-Index alto para ficar na frente de todos os componentes) */
+                <section className={`relative z-40 grid grid-cols-1 md:grid-cols-12 gap-4 border rounded-2xl p-5 shadow-lg backdrop-blur-sm ${
+                  isLight ? 'bg-white/80 border-slate-200 shadow-slate-200/50' : 'bg-zinc-900/60 border-zinc-800/80 shadow-black/40'
+                }`}>
+                  <div className="md:col-span-5 relative z-50">
+                    <CompanySelector
+                      companies={companies}
+                      selectedCompany={selectedCompany}
+                      onSelectCompany={(comp) => {
+                        setSelectedCompany(comp);
+                        setSelectedIdOns(null);
                       }}
-                      title="Restaurar período emparelhado padrão de 30 anos (ano-mês)"
-                      className={`p-1 rounded-md border text-[11px] flex items-center gap-1 transition-all ${
-                        isLight
-                          ? 'border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
-                          : 'border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
-                      }`}
-                    >
-                      <RotateCcw className="w-3 h-3" />
-                      <span className="hidden sm:inline">Padrão</span>
-                    </button>
-                  </div>
-
-                  <div className={`flex items-center justify-between gap-1.5 border rounded-xl p-2 ${
-                    isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
-                  }`}>
-                    <input
-                      type="text"
-                      maxLength={7}
-                      placeholder="AAAA-MM"
-                      value={startPeriod}
-                      onChange={(e) => setStartPeriod(e.target.value)}
-                      title="Mês inicial (Formato AAAA-MM)"
-                      className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
-                        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
-                      }`}
-                    />
-                    <span className="text-zinc-400 font-bold text-xs">até</span>
-                    <input
-                      type="text"
-                      maxLength={7}
-                      placeholder="AAAA-MM"
-                      value={endPeriod}
-                      onChange={(e) => setEndPeriod(e.target.value)}
-                      title="Mês final (Formato AAAA-MM)"
-                      className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
-                        isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
-                      }`}
+                      isLoading={isLoadingCompanies}
                     />
                   </div>
 
-                  {dateRangeData && (
-                    <div
-                      className="mt-1.5 flex items-center gap-1.5 text-[10px] text-cyan-600 dark:text-cyan-400 font-medium truncate"
-                      title={dateRangeData.explanation}
-                    >
-                      <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
-                      <span className="truncate">
-                        Emparelhado: Ref {dateRangeData.limiting_model} ({dateRangeData.end_year_month || dateRangeData.end_year})
-                      </span>
+                  <div className="md:col-span-4 relative z-40">
+                    <EnsembleSelector
+                      ensembles={ensembles}
+                      selectedIdOns={selectedIdOns}
+                      onSelectEnsemble={(id) => setSelectedIdOns(id)}
+                      isLoading={isLoadingEnsembles}
+                      disabled={!selectedCompany}
+                    />
+                  </div>
+
+                  <div className="md:col-span-3 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+                        <span>
+                          Período ({(() => {
+                            const [sy, sm] = startPeriod.split('-').map(Number);
+                            const [ey, em] = endPeriod.split('-').map(Number);
+                            if (!sy || !ey) return '30 Anos';
+                            const months = (ey - sy) * 12 + ((em || 8) - (sm || 8));
+                            const y = Math.round((months / 12) * 10) / 10;
+                            return `${y} Anos`;
+                          })()})
+                        </span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (dateRangeData) {
+                            setStartPeriod(dateRangeData.start_year_month);
+                            setEndPeriod(dateRangeData.end_year_month);
+                          } else {
+                            setStartPeriod('1996-08');
+                            setEndPeriod('2026-08');
+                          }
+                        }}
+                        title="Restaurar período emparelhado padrão de 30 anos (ano-mês)"
+                        className={`p-1 rounded-md border text-[11px] flex items-center gap-1 transition-all ${
+                          isLight
+                            ? 'border-slate-200 hover:bg-slate-100 text-slate-500 hover:text-slate-800'
+                            : 'border-zinc-800 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200'
+                        }`}
+                      >
+                        <RotateCcw className="w-3 h-3" />
+                        <span className="hidden sm:inline">Padrão</span>
+                      </button>
                     </div>
-                  )}
-                </div>
-              </section>
+
+                    <div className={`flex items-center justify-between gap-1.5 border rounded-xl p-2 ${
+                      isLight ? 'bg-slate-50 border-slate-200' : 'bg-zinc-900 border-zinc-800'
+                    }`}>
+                      <input
+                        type="text"
+                        maxLength={7}
+                        placeholder="AAAA-MM"
+                        value={startPeriod}
+                        onChange={(e) => setStartPeriod(e.target.value)}
+                        title="Mês inicial (Formato AAAA-MM)"
+                        className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
+                        }`}
+                      />
+                      <span className="text-zinc-400 font-bold text-xs">até</span>
+                      <input
+                        type="text"
+                        maxLength={7}
+                        placeholder="AAAA-MM"
+                        value={endPeriod}
+                        onChange={(e) => setEndPeriod(e.target.value)}
+                        title="Mês final (Formato AAAA-MM)"
+                        className={`w-24 border rounded-lg px-2 py-1.5 text-center font-mono text-xs font-bold tracking-wider ${
+                          isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-zinc-950 border-zinc-700 text-white'
+                        }`}
+                      />
+                    </div>
+
+                    {dateRangeData && (
+                      <div
+                        className="mt-1.5 flex items-center gap-1.5 text-[10px] text-cyan-600 dark:text-cyan-400 font-medium truncate"
+                        title={dateRangeData.explanation}
+                      >
+                        <Sparkles className="w-3 h-3 shrink-0 text-amber-500" />
+                        <span className="truncate">
+                          Emparelhado: Ref {dateRangeData.limiting_model} ({dateRangeData.end_year_month || dateRangeData.end_year})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                /* Top Controls: Manual Coordinates Selector */
+                <section className="relative z-40">
+                  <ManualCoordinatesSelector
+                    latitude={manualLat}
+                    longitude={manualLon}
+                    siteName={manualSiteName}
+                    onChangeCoordinates={(lat, lon, name) => {
+                      setManualLat(lat);
+                      setManualLon(lon);
+                      setManualSiteName(name);
+                    }}
+                    onSearchNodes={() => {
+                      refetchManualNodes();
+                      queryClient.invalidateQueries({ queryKey: ['nodes-manual'] });
+                    }}
+                    isLoading={isLoadingManualNodes}
+                    dateRange={dateRangeData || null}
+                    startMonth={startPeriod}
+                    endMonth={endPeriod}
+                    onChangeStartMonth={(val) => setStartPeriod(val)}
+                    onChangeEndMonth={(val) => setEndPeriod(val)}
+                    onResetPeriod={() => {
+                      if (dateRangeData) {
+                        setStartPeriod(dateRangeData.start_year_month);
+                        setEndPeriod(dateRangeData.end_year_month);
+                      } else {
+                        setStartPeriod('1996-08');
+                        setEndPeriod('2026-08');
+                      }
+                    }}
+                    theme={theme}
+                  />
+                </section>
+              )}
 
               {/* Geospatial Map & Nodes Table */}
               <section className="space-y-4">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div>
-                    <h2 className={`text-lg font-bold flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
-                      <span>SE Coletora & Nós de Reanálise</span>
-                      {activeEnsemble && (
+                    <h2 className={`text-lg font-bold flex items-center gap-2 flex-wrap ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                      <span>{isManualModule ? 'Ponto Alvo & Nós de Reanálise' : 'SE Coletora & Nós de Reanálise'}</span>
+                      {currentSubstation && (
                         <span className="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                          SE: {activeEnsemble.latitude.toFixed(4)}, {activeEnsemble.longitude.toFixed(4)}
+                          {isManualModule ? 'Ponto' : 'SE'}: {currentSubstation.latitude.toFixed(4)}, {currentSubstation.longitude.toFixed(4)}
                         </span>
                       )}
                     </h2>
                     <p className="text-xs text-slate-500 dark:text-zinc-400">
-                      Visualização geoespacial com as 4 coordenadas mais próximas de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°)
+                      {isManualModule
+                        ? 'Visualização geoespacial com as 4 coordenadas mais próximas de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°) para as coordenadas personalizadas'
+                        : 'Visualização geoespacial com as 4 coordenadas mais próximas de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°)'}
                     </p>
                   </div>
 
@@ -568,7 +766,7 @@ export const App: React.FC = () => {
                     <button
                       type="button"
                       onClick={handleDownloadAllNodes}
-                      disabled={downloadMutation.isPending || !nodesData}
+                      disabled={downloadMutation.isPending || !currentNodesData}
                       className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-cyan-600 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-medium text-xs shadow-md transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -579,23 +777,47 @@ export const App: React.FC = () => {
 
                 {/* Map (Free OpenStreetMap & Satellite, no key required) */}
                 <MapView
-                  substation={nodesData?.substation || null}
-                  era5Nodes={nodesData?.era5_nodes || []}
-                  merra2Nodes={nodesData?.merra2_nodes || []}
+                  substation={currentSubstation}
+                  era5Nodes={currentNodesData?.era5_nodes || []}
+                  merra2Nodes={currentNodesData?.merra2_nodes || []}
                   selectedNodeId={selectedNode?.node_id || null}
-                  onSelectNode={(node) => setSelectedNode(node)}
+                  onSelectNode={(node) => {
+                    setIsExtrapolatedActive(false);
+                    setSelectedNode(node);
+                  }}
+                  onMapClick={isManualModule ? handleMapClick : undefined}
                   theme={theme}
                 />
 
                 <NodesGridTable
-                  substation={nodesData?.substation || null}
-                  era5Nodes={nodesData?.era5_nodes || []}
-                  merra2Nodes={nodesData?.merra2_nodes || []}
+                  substation={currentSubstation}
+                  era5Nodes={currentNodesData?.era5_nodes || []}
+                  merra2Nodes={currentNodesData?.merra2_nodes || []}
                   selectedNode={selectedNode}
-                  onSelectNode={(node) => setSelectedNode(node)}
+                  onSelectNode={(node) => {
+                    setIsExtrapolatedActive(false);
+                    setSelectedNode(node);
+                  }}
                   onDownloadNode={handleDownloadNode}
                   isDownloading={downloadMutation.isPending}
                   downloadingNodeId={downloadingNodeId}
+                />
+              </section>
+
+              {/* Vortex Extrapolation Card (Available for both ONS and Manual points) */}
+              <section>
+                <VortexExtrapolationCard
+                  substation={currentSubstation}
+                  era5Nodes={currentNodesData?.era5_nodes || []}
+                  merra2Nodes={currentNodesData?.merra2_nodes || []}
+                  selectedModel={selectedNode?.model || 'ERA5'}
+                  onRunExtrapolation={handleRunExtrapolation}
+                  isExtrapolating={interpolateMutation.isPending}
+                  hasExtrapolatedSeries={hasExtrapolatedSeries}
+                  isExtrapolatedActive={isExtrapolatedActive}
+                  onToggleExtrapolatedActive={handleToggleExtrapolated}
+                  extrapolationDetails={extrapolationDetails}
+                  theme={theme}
                 />
               </section>
 
@@ -712,18 +934,32 @@ export const App: React.FC = () => {
 
                 {/* Tab 1.1: Linear Correlation (MCP) */}
                 {activeTab === 'correlation' && (
-                  <LinearCorrelationChart
-                    data={correlationData || null}
-                    nodeTitle={selectedNode ? `${selectedNode.node_id} (${selectedNode.position})` : 'Nenhum'}
-                    model={selectedNode?.model || 'ERA5'}
-                    ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
-                    aggregation={correlationAgg}
-                    onChangeAggregation={(agg) => setCorrelationAgg(agg)}
-                    availablePlants={correlationData?.available_plants || ensemblePlants}
-                    selectedPlant={selectedPlant}
-                    onSelectPlant={(p) => setSelectedPlant(p)}
-                    isLoading={isLoadingCorrelation}
-                  />
+                  activeEnsemble ? (
+                    <LinearCorrelationChart
+                      data={correlationData || null}
+                      nodeTitle={selectedNode ? `${selectedNode.node_id} (${selectedNode.position})` : 'Nenhum'}
+                      model={selectedNode?.model || 'ERA5'}
+                      ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
+                      aggregation={correlationAgg}
+                      onChangeAggregation={(agg) => setCorrelationAgg(agg)}
+                      availablePlants={correlationData?.available_plants || ensemblePlants}
+                      selectedPlant={selectedPlant}
+                      onSelectPlant={(p) => setSelectedPlant(p)}
+                      isLoading={isLoadingCorrelation}
+                    />
+                  ) : (
+                    <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+                      isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900/80 border-zinc-800 text-zinc-400'
+                    }`}>
+                      <GitCompare className="w-8 h-8 text-emerald-500 mx-auto" />
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                        Correlação MCP com Dados Medidos ONS
+                      </h3>
+                      <p className="text-xs max-w-md mx-auto">
+                        A correlação concomitante (MCP) requer a vinculação com uma usina ou conjunto eólico monitorado pelo ONS. No módulo 'Reanálises - ONS', selecione uma empresa e conjunto para comparar a reanálise contra os anemômetros reais.
+                      </p>
+                    </div>
+                  )
                 )}
 
                 {/* Tab 2: Wind Rose & Weibull */}
@@ -784,10 +1020,24 @@ export const App: React.FC = () => {
 
                 {/* Tab 4: ONS Real Capacity Factor Comparison */}
                 {activeTab === 'ons' && (
-                  <CapacityFactorComparison
-                    data={analyticsData?.ons_correlation || []}
-                    ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
-                  />
+                  activeEnsemble ? (
+                    <CapacityFactorComparison
+                      data={analyticsData?.ons_correlation || []}
+                      ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
+                    />
+                  ) : (
+                    <div className={`p-8 rounded-2xl border text-center space-y-3 ${
+                      isLight ? 'bg-white border-slate-200 text-slate-600' : 'bg-zinc-900/80 border-zinc-800 text-zinc-400'
+                    }`}>
+                      <Zap className="w-8 h-8 text-purple-500 mx-auto" />
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-zinc-200">
+                        Fator de Capacidade Real ONS
+                      </h3>
+                      <p className="text-xs max-w-md mx-auto">
+                        O Fator de Capacidade Real é disponibilizado para conjuntos cadastrados na base do ONS. No módulo 'Reanálises - ONS', você poderá cruzar o histórico mensal de geração e FC com a velocidade da reanálise.
+                      </p>
+                    </div>
+                  )
                 )}
               </section>
             </div>

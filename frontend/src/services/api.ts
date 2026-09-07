@@ -11,6 +11,8 @@ import {
   CorrelationResponse,
   OnsMeasuredResponse,
   EnsemblePlantsResponse,
+  InterpolationRequest,
+  InterpolationResponse,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -51,6 +53,24 @@ export const fetchNodes = async (id_ons: string): Promise<NodesResponse> => {
   const { data } = await api.get<NodesResponse>('/reanalysis/nodes', {
     params: { id_ons },
   });
+  return data;
+};
+
+export const fetchNodesByCoordinates = async (
+  latitude: number,
+  longitude: number,
+  site_name: string = 'Ponto Personalizado'
+): Promise<NodesResponse> => {
+  const { data } = await api.get<NodesResponse>('/reanalysis/nodes-by-coords', {
+    params: { latitude, longitude, site_name },
+  });
+  return data;
+};
+
+export const runSpatialInterpolation = async (
+  params: InterpolationRequest
+): Promise<InterpolationResponse> => {
+  const { data } = await api.post<InterpolationResponse>('/reanalysis/interpolate', params);
   return data;
 };
 

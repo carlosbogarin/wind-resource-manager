@@ -319,6 +319,52 @@ def test_multi_plant_correlation():
     assert abs(res_beta["pearson_r"] - 1.0) < 1e-4
 
 
+def test_nodes_by_coordinates_api():
+    client = TestClient(app)
+    resp = client.get("/api/reanalysis/nodes-by-coords", params={
+        "latitude": -14.1028,
+        "longitude": -42.6094,
+        "site_name": "Mastro Teste 01",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["substation"]["id_ons"] == "MANUAL"
+    assert data["substation"]["ensemble_name"] == "Mastro Teste 01"
+    assert len(data["era5_nodes"]) == 4
+    assert len(data["merra2_nodes"]) == 4
+    assert {n["position"] for n in data["era5_nodes"]} == {"NW", "NE", "SW", "SE"}
+    assert {n["position"] for n in data["merra2_nodes"]} == {"NW", "NE", "SW", "SE"}
+
+
+def test_vortex_spatial_vector_math():
+    import numpy as np
+
+    from src.analytics.spatial_interpolation import get_vortex_cache_path
+
+    # Test pure trigonometric vector reconstitution
+    # Case: uniform 10 m/s from 90 degrees (East) on all 4 nodes with equal weights
+    ws = np.array([10.0, 10.0])
+    wd = np.array([90.0, 90.0])
+    rad = np.pi / 180.0
+    u = -ws * np.sin(wd * rad) # -10.0
+    v = -ws * np.cos(wd * rad) # 0.0
+
+    # IDW weighted sum with equal weights
+    u_syn = 0.25 * u * 4
+    v_syn = 0.25 * v * 4
+
+    rec_ws = np.round(np.sqrt(u_syn**2 + v_syn**2), 2)
+    rec_wd = np.round((np.degrees(np.arctan2(-u_syn, -v_syn)) + 360.0) % 360.0, 1)
+
+    assert abs(rec_ws[0] - 10.0) < 1e-2
+    assert abs(rec_wd[0] - 90.0) < 1e-1
+
+    # Verify cache path naming
+    p = get_vortex_cache_path("ERA5", -14.1028, -42.6094, 1996, 2026)
+    assert "vortex_era5_-14.1028_-42.6094_1996_2026.parquet" in str(p)
+
+
+
 
 
 

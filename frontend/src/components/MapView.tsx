@@ -9,6 +9,7 @@ interface MapViewProps {
   merra2Nodes: ReanalysisNode[];
   selectedNodeId: string | null;
   onSelectNode: (node: ReanalysisNode) => void;
+  onMapClick?: (lat: number, lon: number) => void;
   theme?: 'light' | 'dark';
 }
 
@@ -20,6 +21,7 @@ export const MapView: React.FC<MapViewProps> = ({
   merra2Nodes,
   selectedNodeId,
   onSelectNode,
+  onMapClick,
   theme = 'dark',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -91,6 +93,23 @@ export const MapView: React.FC<MapViewProps> = ({
     tileLayerRef.current = newTileLayer;
   }, [activeTileLayer]);
 
+  // Handle map click for manual coordinates selection
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const handleClick = (e: L.LeafletMouseEvent) => {
+      if (onMapClick) {
+        onMapClick(Number(e.latlng.lat.toFixed(5)), Number(e.latlng.lng.toFixed(5)));
+      }
+    };
+
+    map.on('click', handleClick);
+    return () => {
+      map.off('click', handleClick);
+    };
+  }, [onMapClick]);
+
   // Update Markers & Polygons when selection changes
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -103,15 +122,16 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const bounds = L.latLngBounds([]);
 
-    // 1. SE Coletora Marker
+    // 1. SE Coletora / Ponto Alvo Marker
+    const isManual = substation.id_ons === 'MANUAL';
     const seLatLng = L.latLng(substation.latitude, substation.longitude);
     bounds.extend(seLatLng);
 
     const seIconHtml = `
       <div class="relative flex items-center justify-center">
-        <div class="absolute w-8 h-8 rounded-full bg-emerald-500/30 animate-ping"></div>
-        <div class="w-7 h-7 rounded-full bg-emerald-500 border-2 border-white shadow-xl flex items-center justify-center text-white font-bold text-xs">
-          ⚡
+        <div class="absolute w-8 h-8 rounded-full ${isManual ? 'bg-cyan-500/30' : 'bg-emerald-500/30'} animate-ping"></div>
+        <div class="w-7 h-7 rounded-full ${isManual ? 'bg-cyan-600' : 'bg-emerald-500'} border-2 border-white shadow-xl flex items-center justify-center text-white font-bold text-xs">
+          ${isManual ? '📍' : '⚡'}
         </div>
       </div>
     `;
@@ -126,12 +146,12 @@ export const MapView: React.FC<MapViewProps> = ({
     const seMarker = L.marker(seLatLng, { icon: seIcon }).addTo(layers);
     seMarker.bindPopup(`
       <div class="p-2 space-y-1">
-        <div class="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 text-sm">
-          <span>⚡ SE Coletora</span>
+        <div class="flex items-center gap-1.5 font-bold ${isManual ? 'text-cyan-600 dark:text-cyan-400' : 'text-emerald-600 dark:text-emerald-400'} text-sm">
+          <span>${isManual ? '📍 Ponto Alvo' : '⚡ SE Coletora'}</span>
         </div>
         <div class="text-xs font-semibold text-slate-900 dark:text-white">${substation.ensemble_name}</div>
-        <div class="text-[11px] text-slate-500 dark:text-zinc-400">Código ONS: <span class="font-mono text-slate-700 dark:text-zinc-300">${substation.id_ons}</span></div>
-        <div class="text-[11px] text-slate-500 dark:text-zinc-400">Capacidade: <span class="text-emerald-600 dark:text-emerald-400 font-medium">${substation.capacity_mw} MW</span></div>
+        ${!isManual ? `<div class="text-[11px] text-slate-500 dark:text-zinc-400">Código ONS: <span class="font-mono text-slate-700 dark:text-zinc-300">${substation.id_ons}</span></div>` : ''}
+        ${!isManual && substation.capacity_mw > 0 ? `<div class="text-[11px] text-slate-500 dark:text-zinc-400">Capacidade: <span class="text-emerald-600 dark:text-emerald-400 font-medium">${substation.capacity_mw} MW</span></div>` : ''}
         <div class="text-[11px] text-slate-500 dark:text-zinc-400 font-mono">Coord: ${substation.latitude.toFixed(4)}, ${substation.longitude.toFixed(4)}</div>
       </div>
     `);
@@ -323,7 +343,7 @@ export const MapView: React.FC<MapViewProps> = ({
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
             <div className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-[8px] text-white font-bold">⚡</div>
-            <span className="text-slate-800 dark:text-zinc-300 font-medium">SE Coletora (Subestação ONS)</span>
+            <span className="text-slate-800 dark:text-zinc-300 font-medium">Ponto Alvo / SE Coletora</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3.5 h-3.5 rounded-full bg-cyan-500 border border-cyan-200"></div>
@@ -334,6 +354,11 @@ export const MapView: React.FC<MapViewProps> = ({
             <span className="text-amber-600 dark:text-amber-400 font-medium">MERRA-2 NASA (0.5° x 0.625°)</span>
           </div>
         </div>
+        {onMapClick && (
+          <div className="text-[10px] text-emerald-700 dark:text-emerald-300 font-medium bg-emerald-50 dark:bg-emerald-950/60 p-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+            💡 Clique no mapa para posicionar o ponto.
+          </div>
+        )}
         <p className="text-[10px] text-slate-500 dark:text-zinc-500 pt-1 border-t border-slate-100 dark:border-zinc-800">
           OpenStreetMap & Esri HD
         </p>

@@ -7,6 +7,10 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.analytics.correlation import compute_reanalysis_measured_correlation
 from src.analytics.profiles import compute_diurnal_profile, compute_monthly_seasonality, correlate_with_ons_fc
+from src.analytics.spatial_interpolation import (
+    interpolate_reanalysis_to_point,
+    load_vortex_series,
+)
 from src.analytics.weibull import fit_weibull
 from src.analytics.wind_rose import calculate_wind_rose
 from src.api.schemas.reanalysis import (
@@ -14,6 +18,8 @@ from src.api.schemas.reanalysis import (
     DateRangeResponse,
     DownloadRequest,
     DownloadResponse,
+    InterpolationRequest,
+    InterpolationResponse,
     NodeModel,
     NodesResponse,
     SubstationGeo,
@@ -34,24 +40,8 @@ logger = logging.getLogger("api.reanalysis")
 router = APIRouter(prefix="/reanalysis", tags=["Reanálise ERA5 & MERRA-2"])
 
 
-@router.get("/date-range", response_model=DateRangeResponse)
-def get_reanalysis_date_range(force: bool = False):
-    """Retorna o intervalo sincronizado de 30 anos baseado no modelo mais desatualizado entre ERA5 e MERRA-2."""
-    data = get_synchronized_30y_date_range(force_refresh=force)
-    return DateRangeResponse(**data)
-
-
-@router.get("/nodes", response_model=NodesResponse)
-def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto eólico ONS")):
-    """Calcula a SE Coletora e os 4 nós mais próximos de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°)."""
-    det = get_ensemble_details(id_ons)
-    if not det:
-        raise HTTPException(status_code=404, detail=f"Conjunto eólico '{id_ons}' não encontrado.")
-
-    lat = det["latitude"]
-    lon = det["longitude"]
-
-    # Calcular nós ERA5 (0.25°)
+def _build_nodes_for_coords(lat: float, lon: float) -> tuple[list[NodeModel], list[NodeModel]]:
+    """Calcula nós de grade ERA5 e MERRA-2 e seus estados de cache para coordenadas geográficas."""
     era5_math_nodes = get_era5_bounding_nodes(lat, lon)
     era5_models = []
     for n in era5_math_nodes:
@@ -77,7 +67,6 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
             )
         )
 
-    # Calcular nós MERRA-2 (0.5° x 0.625°)
     merra2_math_nodes = get_merra2_bounding_nodes(lat, lon)
     merra2_models = []
     for n in merra2_math_nodes:
@@ -103,6 +92,27 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
             )
         )
 
+    return era5_models, merra2_models
+
+
+@router.get("/date-range", response_model=DateRangeResponse)
+def get_reanalysis_date_range(force: bool = False):
+    """Retorna o intervalo sincronizado de 30 anos baseado no modelo mais desatualizado entre ERA5 e MERRA-2."""
+    data = get_synchronized_30y_date_range(force_refresh=force)
+    return DateRangeResponse(**data)
+
+
+@router.get("/nodes", response_model=NodesResponse)
+def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto eólico ONS")):
+    """Calcula a SE Coletora e os 4 nós mais próximos de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°)."""
+    det = get_ensemble_details(id_ons)
+    if not det:
+        raise HTTPException(status_code=404, detail=f"Conjunto eólico '{id_ons}' não encontrado.")
+
+    lat = det["latitude"]
+    lon = det["longitude"]
+    era5_models, merra2_models = _build_nodes_for_coords(lat, lon)
+
     return NodesResponse(
         substation=SubstationGeo(
             id_ons=det["id_ons"],
@@ -115,6 +125,48 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
         era5_nodes=era5_models,
         merra2_nodes=merra2_models,
     )
+
+
+@router.get("/nodes-by-coords", response_model=NodesResponse)
+def get_nodes_for_coordinates(
+    latitude: float = Query(..., description="Latitude do ponto alvo"),
+    longitude: float = Query(..., description="Longitude do ponto alvo"),
+    site_name: str = Query(default="Ponto Personalizado", description="Nome descritivo do local"),
+):
+    """Calcula o ponto alvo e os 4 nós mais próximos de ERA5 (0.25°) e MERRA-2 (0.5°x0.625°) para quaisquer coordenadas geográficas."""
+    era5_models, merra2_models = _build_nodes_for_coords(latitude, longitude)
+
+    return NodesResponse(
+        substation=SubstationGeo(
+            id_ons="MANUAL",
+            ensemble_name=site_name,
+            latitude=latitude,
+            longitude=longitude,
+            state="",
+            capacity_mw=0.0,
+        ),
+        era5_nodes=era5_models,
+        merra2_nodes=merra2_models,
+    )
+
+
+@router.post("/interpolate", response_model=InterpolationResponse)
+def trigger_spatial_interpolation(req: InterpolationRequest):
+    """Executa a interpolação espacial vetorial horizontal dos 4 nós (ERA5 ou MERRA-2) até as coordenadas do ponto alvo."""
+    try:
+        result = interpolate_reanalysis_to_point(
+            model=req.model,
+            lat=req.latitude,
+            lon=req.longitude,
+            site_name=req.site_name,
+            start_year=req.start_year,
+            end_year=req.end_year,
+            force=req.force,
+        )
+        return InterpolationResponse(**result)
+    except Exception as e:
+        logger.error(f"Erro na interpolação espacial ({req.model}): {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/download", response_model=DownloadResponse)
@@ -196,7 +248,9 @@ def get_timeseries_data(
 ):
     """Retorna a série temporal horária, diária ou mensal formatada para o Apache ECharts, incluindo vento medido dos parques e flag de dado inválido."""
     try:
-        if model == "ERA5":
+        if node_id.startswith("VORTEX"):
+            df = load_vortex_series(model, latitude, longitude, start_year, end_year)
+        elif model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
@@ -399,7 +453,9 @@ def get_correlation_data(
 ):
     """Calcula regressão linear concomitante (Measure-Correlate-Predict / MCP) entre reanálise e dados reais medidos das turbinas."""
     try:
-        if model == "ERA5":
+        if node_id.startswith("VORTEX"):
+            r_df = load_vortex_series(model, latitude, longitude, start_year, end_year)
+        elif model == "ERA5":
             r_df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             r_df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
@@ -447,7 +503,9 @@ def get_analytics(
 ):
     """Calcula estatísticas de Weibull, Rosa dos Ventos, Perfil Diurno e correlação com FC do ONS."""
     try:
-        if model == "ERA5":
+        if node_id.startswith("VORTEX"):
+            df = load_vortex_series(model, latitude, longitude, start_year, end_year)
+        elif model == "ERA5":
             df = load_era5_series(node_id, latitude, longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, latitude, longitude, start_year, end_year)
@@ -483,7 +541,7 @@ def get_analytics(
         # Filtrar por janela ano-mês se fornecida
         df = filter_df_by_period(df, start_month, end_month)
 
-        if model == "ERA5":
+        if node_id.startswith("VORTEX") or model == "ERA5":
             speeds = df["wind_speed_100m"].to_numpy()
             directions = df["wind_direction_100m"].to_numpy()
         else:
