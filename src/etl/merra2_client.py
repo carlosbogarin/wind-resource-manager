@@ -111,18 +111,24 @@ def fetch_and_cache_merra2(
         )
 
         today_fmt = datetime.now().strftime("%Y%m%d")
+        earliest_nasa_hourly = "20010101"
 
-        # NASA POWER aceita intervalos de até 5 anos por requisição horária
+        # NASA POWER aceita intervalos de até 5 anos por requisição horária (dados disponíveis a partir de 2001)
         chunk_size_years = 5
         all_dfs: list[pl.DataFrame] = []
 
         for curr_start in range(start_year, end_year + 1, chunk_size_years):
             curr_end = min(curr_start + chunk_size_years - 1, end_year)
-            start_fmt = f"{curr_start}0101"
+            candidate_start = f"{curr_start}0101"
             candidate_end = f"{curr_end}1231"
             end_fmt = min(candidate_end, today_fmt)
+            start_fmt = max(candidate_start, earliest_nasa_hourly)
 
-            if start_fmt > today_fmt:
+            if end_fmt < earliest_nasa_hourly:
+                logger.info(f"NASA POWER Hourly não possui registros horários antes de 2001 ({candidate_start} a {candidate_end}). Pulando...")
+                continue
+
+            if start_fmt > today_fmt or start_fmt > end_fmt:
                 break
 
             logger.info(f"Baixando bloco MERRA-2 {start_fmt} a {end_fmt}...")

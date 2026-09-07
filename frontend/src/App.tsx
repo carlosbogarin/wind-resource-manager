@@ -148,11 +148,25 @@ export const App: React.FC = () => {
     enabled: !!selectedIdOns,
   });
 
-  // Default selected node to closest ERA5 node
+  const [downloadingNodeId, setDownloadingNodeId] = useState<string | null>(null);
+
+  // Default selected node to closest ERA5 node or keep current selection updated
   useEffect(() => {
-    if (nodesData && nodesData.era5_nodes.length > 0) {
-      const closestEra5 = [...nodesData.era5_nodes].sort((a, b) => a.distance_km - b.distance_km)[0];
-      setSelectedNode(closestEra5);
+    if (nodesData) {
+      const allNodes = [...nodesData.era5_nodes, ...nodesData.merra2_nodes];
+      if (selectedNode) {
+        const found = allNodes.find(
+          (n) => n.node_id === selectedNode.node_id && n.model === selectedNode.model
+        );
+        if (found) {
+          setSelectedNode(found);
+          return;
+        }
+      }
+      if (nodesData.era5_nodes.length > 0) {
+        const closestEra5 = [...nodesData.era5_nodes].sort((a, b) => a.distance_km - b.distance_km)[0];
+        setSelectedNode(closestEra5);
+      }
     }
   }, [nodesData]);
 
@@ -177,21 +191,31 @@ export const App: React.FC = () => {
   });
 
   const handleDownloadNode = (node: ReanalysisNode) => {
+    setSelectedNode(node);
+    setDownloadingNodeId(node.node_id);
+    const isReload = node.is_cached;
     setNotification({
       type: 'info',
-      text: `Iniciando download sob demanda para o nó ${node.node_id} (${node.model}, ${startPeriod} a ${endPeriod})...`,
+      text: `${isReload ? 'Recarregando' : 'Baixando'} série temporal sob demanda para ${node.node_id} (${node.model}, ${startPeriod} a ${endPeriod})...`,
     });
-    downloadMutation.mutate({
-      node_id: node.node_id,
-      model: node.model,
-      latitude: node.latitude,
-      longitude: node.longitude,
-      start_year: startYear,
-      end_year: endYear,
-      start_month: startPeriod,
-      end_month: endPeriod,
-      force: false,
-    });
+    downloadMutation.mutate(
+      {
+        node_id: node.node_id,
+        model: node.model,
+        latitude: node.latitude,
+        longitude: node.longitude,
+        start_year: startYear,
+        end_year: endYear,
+        start_month: startPeriod,
+        end_month: endPeriod,
+        force: isReload,
+      },
+      {
+        onSettled: () => {
+          setDownloadingNodeId(null);
+        },
+      }
+    );
   };
 
   const handleDownloadAllNodes = async () => {
@@ -501,6 +525,7 @@ export const App: React.FC = () => {
                   onSelectNode={(node) => setSelectedNode(node)}
                   onDownloadNode={handleDownloadNode}
                   isDownloading={downloadMutation.isPending}
+                  downloadingNodeId={downloadingNodeId}
                 />
               </section>
 

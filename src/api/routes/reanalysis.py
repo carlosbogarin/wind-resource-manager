@@ -50,11 +50,11 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
     era5_models = []
     for n in era5_math_nodes:
         node_id = f"ERA5-{n.position}"
-        clean_id = node_id.replace(" ", "_").replace("-", "_")
+        era5_pattern = f"era5_*_{n.latitude:.4f}_{n.longitude:.4f}_*.parquet"
         cached = (
             get_era5_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
             or get_era5_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
-            or len(list(settings.REANALYSIS_DIR.glob(f"era5_{clean_id}_*.parquet"))) > 0
+            or len(list(settings.REANALYSIS_DIR.glob(era5_pattern))) > 0
         )
         era5_models.append(
             NodeModel(
@@ -76,11 +76,11 @@ def get_nodes_for_ensemble(id_ons: str = Query(..., description="ID do conjunto 
     merra2_models = []
     for n in merra2_math_nodes:
         node_id = f"MERRA2-{n.position}"
-        clean_id = node_id.replace(" ", "_").replace("-", "_")
+        merra2_pattern = f"merra2_*_{n.latitude:.4f}_{n.longitude:.4f}_*.parquet"
         cached = (
             get_merra2_cache_path(node_id, n.latitude, n.longitude, 1996, 2026).exists()
             or get_merra2_cache_path(node_id, n.latitude, n.longitude, 1994, 2024).exists()
-            or len(list(settings.REANALYSIS_DIR.glob(f"merra2_{clean_id}_*.parquet"))) > 0
+            or len(list(settings.REANALYSIS_DIR.glob(merra2_pattern))) > 0
         )
         merra2_models.append(
             NodeModel(

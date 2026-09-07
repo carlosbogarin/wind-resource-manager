@@ -1,5 +1,5 @@
-﻿import React from 'react';
-import { Download, CheckCircle2, Clock, Navigation, Compass, ExternalLink } from 'lucide-react';
+import React from 'react';
+import { Download, CheckCircle2, Clock, Navigation, Compass, ExternalLink, Loader2 } from 'lucide-react';
 import { ReanalysisNode, SubstationGeo } from '../types';
 
 interface NodesGridTableProps {
@@ -10,6 +10,7 @@ interface NodesGridTableProps {
   onSelectNode: (node: ReanalysisNode) => void;
   onDownloadNode: (node: ReanalysisNode) => void;
   isDownloading?: boolean;
+  downloadingNodeId?: string | null;
 }
 
 export const NodesGridTable: React.FC<NodesGridTableProps> = ({
@@ -20,6 +21,7 @@ export const NodesGridTable: React.FC<NodesGridTableProps> = ({
   onSelectNode,
   onDownloadNode,
   isDownloading,
+  downloadingNodeId,
 }) => {
   return (
     <div className="space-y-4">
@@ -99,13 +101,23 @@ export const NodesGridTable: React.FC<NodesGridTableProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        onSelectNode(node);
                         onDownloadNode(node);
                       }}
                       disabled={isDownloading}
-                      className="w-full text-center py-1.5 px-2 rounded-md bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full text-center py-1.5 px-2 rounded-md bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 hover:text-cyan-200 border border-cyan-500/30 text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      <Download className="w-3 h-3" />
-                      {node.is_cached ? 'Recarregar Série' : 'Baixar Série'}
+                      {isDownloading && downloadingNodeId === node.node_id ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>{node.is_cached ? 'Recarregando...' : 'Baixando...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3 h-3" />
+                          <span>{node.is_cached ? 'Recarregar Série' : 'Baixar Série'}</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -180,13 +192,23 @@ export const NodesGridTable: React.FC<NodesGridTableProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        onSelectNode(node);
                         onDownloadNode(node);
                       }}
                       disabled={isDownloading}
-                      className="w-full text-center py-1.5 px-2 rounded-md bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 hover:text-amber-200 border border-amber-500/30 text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5"
+                      className="w-full text-center py-1.5 px-2 rounded-md bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 hover:text-amber-200 border border-amber-500/30 text-[11px] font-medium transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
                     >
-                      <Download className="w-3 h-3" />
-                      {node.is_cached ? 'Recarregar Série' : 'Baixar Série'}
+                      {isDownloading && downloadingNodeId === node.node_id ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <span>{node.is_cached ? 'Recarregando...' : 'Baixando...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-3 h-3" />
+                          <span>{node.is_cached ? 'Recarregar Série' : 'Baixar Série'}</span>
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>

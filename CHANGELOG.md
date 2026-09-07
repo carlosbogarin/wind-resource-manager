@@ -4,6 +4,22 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [1.3.4] - 2026-09-07
+
+### 🐛 Correções & Conectores de Reanálise (ERA5 & MERRA-2)
+- **Correção da Ação "Recarregar Série" com Forçamento de Download (`force: isReload`)**:
+  - Quando o usuário clicava em "Recarregar Série" em nós já em cache, o frontend enviava `force: false`. O backend encontrava o arquivo local existente e retornava imediatamente sem consultar a API externa. Agora, ao clicar em "Recarregar Série", `force: true` é enviado expressamente, permitindo recarregar e sobrescrever os dados com novas séries completas.
+  - Ao clicar no botão de baixar/recarregar na tabela de nós, o nó clicado é automaticamente selecionado (`setSelectedNode(node)`), permitindo que os gráficos de séries temporais e estatísticas reflitam imediatamente a série processada.
+  - Adicionado indicador visual de carregamento (`Loader2` com texto dinâmico *"Recarregando..."* / *"Baixando..."*) diretamente no botão do card do nó em processamento.
+- **Eliminação de Falsos Positivos de Cache (`is_cached`)**:
+  - Corrigido bug em [`src/api/routes/reanalysis.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/api/routes/reanalysis.py) onde o padrão glob `era5_{clean_id}_*.parquet` verificava apenas o identificador relativo (ex: `ERA5_NW`) sem as coordenadas geográficas. Isso fazia com que todos os parques do Brasil marcassem nós como "em cache" se houvesse qualquer arquivo salvo com o mesmo quadrante.
+  - O padrão foi corrigido para `era5_*_{latitude:.4f}_{longitude:.4f}_*.parquet`, garantindo que o status de cache seja verificado exclusivamente nas coordenadas exatas daquele ponto de grade.
+- **Resolução do Erro HTTP 422 na API da NASA POWER (MERRA-2)**:
+  - A API horária da NASA POWER inicia seus registros obrigatoriamente a partir de **01/01/2001**. Requisições para anos anteriores (ex: 1996 a 2000) resultavam em erro `HTTP 422: Your start date out of range. The data starts at 2001/01/01`.
+  - Ajustado [`src/etl/merra2_client.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/merra2_client.py) para travar a data mínima de requisição horária em `20010101`, pulando blocos anteriores e garantindo download estável de 2001 a 2026 (~4 MB Parquet com vento a 100m extrapolado via cisalhamento e 10m).
+
+---
+
 ## [1.3.3] - 2026-09-07
 
 ### 🚀 Experiência do Desenvolvedor & Operação (Scripts BAT)
