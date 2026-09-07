@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { SubstationGeo, ReanalysisNode } from '../types';
 import { Layers, Map as MapIcon } from 'lucide-react';
@@ -287,7 +287,7 @@ export const MapView: React.FC<MapViewProps> = ({
               ? 'bg-zinc-800 text-white shadow-sm'
               : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
           }`}
-          title="Modo Escuro (OpenStreetMap estilizado, 100% gratuito)"
+          title="Modo Escuro (OpenStreetMap estilizado)"
         >
           Dark
         </button>
@@ -299,7 +299,7 @@ export const MapView: React.FC<MapViewProps> = ({
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
           }`}
-          title="OpenStreetMap Padrão (100% gratuito, sem chave)"
+          title="OpenStreetMap Padrão"
         >
           Padrão
         </button>
@@ -311,7 +311,7 @@ export const MapView: React.FC<MapViewProps> = ({
               ? 'bg-emerald-600 text-white shadow-sm'
               : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
           }`}
-          title="Satélite HD Esri (100% gratuito, visualização real de turbinas)"
+          title="Satélite HD Esri (visualização de turbinas)"
         >
           Satélite
         </button>
@@ -335,7 +335,7 @@ export const MapView: React.FC<MapViewProps> = ({
           </div>
         </div>
         <p className="text-[10px] text-slate-500 dark:text-zinc-500 pt-1 border-t border-slate-100 dark:border-zinc-800">
-          OpenStreetMap & Esri HD • 100% Gratuito (Sem API Key)
+          OpenStreetMap & Esri HD
         </p>
       </div>
     </div>
