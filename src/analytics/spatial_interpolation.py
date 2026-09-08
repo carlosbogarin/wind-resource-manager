@@ -99,7 +99,7 @@ def interpolate_reanalysis_to_point(
             "weights": {n.position: n.weight for n in nodes},
             "bounding_nodes": [
                 {
-                    "node_id": n.node_id,
+                    "node_id": getattr(n, "node_id", f"{model}-{n.position}"),
                     "position": n.position,
                     "latitude": n.latitude,
                     "longitude": n.longitude,
@@ -273,7 +273,7 @@ def interpolate_reanalysis_to_point(
         "weights": {pos: round(w, 4) for pos, w in weights.items()},
         "bounding_nodes": [
             {
-                "node_id": n.node_id,
+                "node_id": getattr(n, "node_id", f"{model}-{n.position}"),
                 "position": n.position,
                 "latitude": n.latitude,
                 "longitude": n.longitude,

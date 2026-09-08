@@ -18,6 +18,11 @@ class ReanalysisNode:
     cardinal_direction: str
     weight: float = 0.0
 
+    @property
+    def node_id(self) -> str:
+        clean_model = "ERA5" if self.model == "ERA5" else "MERRA2"
+        return f"{clean_model}-{self.position}"
+
 
 EARTH_RADIUS_KM = 6371.0088
 
