@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Literal
 
@@ -71,16 +72,16 @@ def interpolate_reanalysis_to_point(
 ) -> dict[str, Any]:
     """Executa a interpolação espacial vetorial horizontal dos 4 nós da grade até as coordenadas do ponto alvo.
 
-    Segue as melhores práticas mundiais de modelagem de vento (padrão Vortex Factoria de Calculs - Vortex SERIES):
+    Fundamentação Metodológica (Shepard, 1968 / WMO No. 8):
     1. Decomposição horária da velocidade e direção em componentes ortogonais (u: zonal, v: meridional);
-    2. Ponderação pelo Inverso da Distância Ponderada Geodésica (IDW com p=2);
+    2. Ponderação pelo Inverso da Distância Ponderada Geodésica (IDW com expoente p=2);
     3. Interpolação espacial independente das componentes u e v;
     4. Reconstituição física da velocidade resultante e da direção angular do vento;
-    5. Interpolação ponderada das variáveis de superfície (vento 10m, temperatura e pressão).
+    5. Interpolação ponderada das grandezas escalares (vento 10m, temperatura e pressão).
     """
     cache_path = get_vortex_cache_path(model, lat, lon, start_year, end_year)
     if cache_path.exists() and not force:
-        logger.info(f"Série sintetizada Vortex {model} encontrada em cache para ({lat:.4f}, {lon:.4f}).")
+        logger.info(f"Série sintetizada {model} encontrada em cache para ({lat:.4f}, {lon:.4f}).")
         df = pl.read_parquet(cache_path)
         file_mb = round(cache_path.stat().st_size / (1024 * 1024), 2)
         nodes = get_era5_bounding_nodes(lat, lon) if model == "ERA5" else get_merra2_bounding_nodes(lat, lon)
@@ -118,29 +119,34 @@ def interpolate_reanalysis_to_point(
         nodes = get_merra2_bounding_nodes(lat, lon)
 
     node_dfs: dict[str, pl.DataFrame] = {}
-    weights: dict[str, float] = {}
+    weights: dict[str, float] = {n.position: n.weight for n in nodes}
 
-    for n in nodes:
+    def _fetch_node_data(n) -> tuple[str, pl.DataFrame]:
         node_id = f"{model}-{n.position}"
-        weights[n.position] = n.weight
-
         if model == "ERA5":
             df = load_era5_series(node_id, n.latitude, n.longitude, start_year, end_year)
             if df is None or len(df) == 0:
-                logger.info(f"Baixando nó faltante {node_id} ({n.latitude}, {n.longitude}) para interpolação Vortex...")
+                logger.info(f"Baixando nó faltante {node_id} ({n.latitude:.4f}, {n.longitude:.4f}) para interpolação espacial...")
                 fetch_and_cache_era5(node_id, n.latitude, n.longitude, start_year, end_year)
                 df = load_era5_series(node_id, n.latitude, n.longitude, start_year, end_year)
         else:
             df = load_merra2_series(node_id, n.latitude, n.longitude, start_year, end_year)
             if df is None or len(df) == 0:
-                logger.info(f"Baixando nó faltante {node_id} ({n.latitude}, {n.longitude}) para interpolação Vortex...")
+                logger.info(f"Baixando nó faltante {node_id} ({n.latitude:.4f}, {n.longitude:.4f}) para interpolação espacial...")
                 fetch_and_cache_merra2(node_id, n.latitude, n.longitude, start_year, end_year)
                 df = load_merra2_series(node_id, n.latitude, n.longitude, start_year, end_year)
 
         if df is None or len(df) == 0:
             raise RuntimeError(f"Não foi possível obter dados para o nó {node_id} ({n.latitude}, {n.longitude}).")
 
-        node_dfs[n.position] = df
+        return n.position, df
+
+    # Download e carregamento concorrente em paralelo dos 4 nós (reduz o tempo em até 4x)
+    with ThreadPoolExecutor(max_workers=min(4, len(nodes))) as executor:
+        results = list(executor.map(_fetch_node_data, nodes))
+
+    for pos, df in results:
+        node_dfs[pos] = df
 
     # Normalizar soma de pesos
     total_w = sum(weights.values())

@@ -19,8 +19,18 @@ from src.database.reanalysis_catalog import upsert_node_record
 
 logger = logging.getLogger("era5_client")
 
-# Lock para sincronizar downloads concorrentes e evitar duplicação de chamadas
-_era5_download_lock = threading.Lock()
+# Locks granulares por coordenada para sincronizar downloads concorrentes e evitar duplicação do mesmo nó
+_era5_node_locks: dict[str, threading.Lock] = {}
+_era5_locks_guard = threading.Lock()
+
+
+def _get_era5_node_lock(lat: float, lon: float) -> threading.Lock:
+    """Retorna lock individual por coordenada para permitir downloads paralelos de nós distintos."""
+    key = f"{lat:.4f}_{lon:.4f}"
+    with _era5_locks_guard:
+        if key not in _era5_node_locks:
+            _era5_node_locks[key] = threading.Lock()
+        return _era5_node_locks[key]
 
 
 def _get_ssl_context() -> ssl.SSLContext:
@@ -161,7 +171,7 @@ def fetch_and_cache_era5(
                     return existing_file
 
                 # 2. INCREMENTO DELTA: base existe com histórico de 30 anos, baixa apenas o período faltante
-                with _era5_download_lock:
+                with _get_era5_node_lock(lat, lon):
                     inc_start_dt = max_ts + timedelta(hours=1)
                     inc_start_str = inc_start_dt.strftime("%Y-%m-%d")
 
@@ -219,9 +229,12 @@ def fetch_and_cache_era5(
             logger.warning(f"Erro ao verificar incremento de base existente ({e}). Procedendo com download completo...")
 
     # 3. Download completo (primeira vez ou quando forçado)
-    with _era5_download_lock:
+    with _get_era5_node_lock(lat, lon):
         if cache_path.exists() and not force:
             return cache_path
+        fresh_existing = find_existing_era5_file(lat, lon)
+        if fresh_existing and fresh_existing.exists() and not force:
+            return fresh_existing
 
         logger.info(
             f"Iniciando download completo da série temporal ERA5 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."

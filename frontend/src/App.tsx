@@ -351,7 +351,7 @@ export const App: React.FC = () => {
     if (!currentSubstation) return;
     setNotification({
       type: 'info',
-      text: `Iniciando extrapolação espacial vetorial (${model}) para ${currentSubstation.ensemble_name}...`,
+      text: `Processando extrapolação espacial vetorial (${model}) para ${currentSubstation.ensemble_name}. Nós não sincronizados estão sendo processados em paralelo...`,
     });
     interpolateMutation.mutate({
       model,

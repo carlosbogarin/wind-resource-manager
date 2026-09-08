@@ -19,7 +19,7 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export const api = axios.create({
   baseURL: `${API_BASE}/api`,
-  timeout: 120000,
+  timeout: 300000, // 5 minutos padrão
   headers: {
     'Content-Type': 'application/json',
   },
@@ -70,7 +70,9 @@ export const fetchNodesByCoordinates = async (
 export const runSpatialInterpolation = async (
   params: InterpolationRequest
 ): Promise<InterpolationResponse> => {
-  const { data } = await api.post<InterpolationResponse>('/reanalysis/interpolate', params);
+  const { data } = await api.post<InterpolationResponse>('/reanalysis/interpolate', params, {
+    timeout: 600000, // 10 minutos para download e interpolação horizontal de 4 nós
+  });
   return data;
 };
 
@@ -92,7 +94,9 @@ export interface DownloadParams {
 }
 
 export const downloadNodeData = async (params: DownloadParams): Promise<DownloadResponse> => {
-  const { data } = await api.post<DownloadResponse>('/reanalysis/download', params);
+  const { data } = await api.post<DownloadResponse>('/reanalysis/download', params, {
+    timeout: 300000, // 5 minutos para download de nó individual
+  });
   return data;
 };
 

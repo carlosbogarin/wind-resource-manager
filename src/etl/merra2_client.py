@@ -49,7 +49,18 @@ def get_merra2_cache_path(node_id: str, lat: float, lon: float, start_year: int,
     return settings.REANALYSIS_DIR / filename
 
 
-_merra2_download_lock = threading.Lock()
+# Locks granulares por coordenada para sincronizar downloads concorrentes e evitar duplicação do mesmo nó
+_merra2_node_locks: dict[str, threading.Lock] = {}
+_merra2_locks_guard = threading.Lock()
+
+
+def _get_merra2_node_lock(lat: float, lon: float) -> threading.Lock:
+    """Retorna lock individual por coordenada para permitir downloads paralelos de nós distintos."""
+    key = f"{lat:.4f}_{lon:.4f}"
+    with _merra2_locks_guard:
+        if key not in _merra2_node_locks:
+            _merra2_node_locks[key] = threading.Lock()
+        return _merra2_node_locks[key]
 
 
 def fetch_nasa_power_merra2_chunk(
@@ -147,7 +158,7 @@ def fetch_and_cache_merra2(
                     return existing_file
 
                 # 2. Incremento Delta
-                with _merra2_download_lock:
+                with _get_merra2_node_lock(lat, lon):
                     inc_start_dt = max_ts + timedelta(days=1)
                     inc_start_fmt = inc_start_dt.strftime("%Y%m%d")
 
@@ -245,9 +256,12 @@ def fetch_and_cache_merra2(
             logger.warning(f"Erro ao verificar incremento MERRA-2 ({e}). Procedendo com download completo...")
 
     # 3. Download completo
-    with _merra2_download_lock:
+    with _get_merra2_node_lock(lat, lon):
         if cache_path.exists() and not force:
             return cache_path
+        fresh_existing = find_existing_merra2_file(lat, lon)
+        if fresh_existing and fresh_existing.exists() and not force:
+            return fresh_existing
 
         logger.info(
             f"Iniciando download completo da série temporal MERRA-2 ({start_year}-{end_year}) para o nó {node_id} ({lat}, {lon})..."
