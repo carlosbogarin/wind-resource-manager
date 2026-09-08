@@ -17,8 +17,10 @@ def compute_reanalysis_measured_correlation(
     aggregation: str = "hourly",
     plant_name: str | None = None,
     max_scatter_points: int = 4000,
+    algorithm: str = "LLS",
 ) -> dict[str, Any] | None:
     """Calcula a correlação linear concomitante (Measure-Correlate-Predict / MCP)
+    via Linear Least Squares (LLS) ou Total Least Squares (TLS / Regressão Ortogonal)
     entre a velocidade de vento da reanálise (x) e o vento medido pelas usinas (y).
     """
     if reanalysis_df is None or measured_df is None:
@@ -108,22 +110,46 @@ def compute_reanalysis_measured_correlation(
     x = paired["wind_reanalysis"].to_numpy().astype(np.float64)
     y = paired["wind_measured"].to_numpy().astype(np.float64)
 
-    # Regressão linear (y = a * x + b)
+    # Coeficiente de correlação de Pearson (propriedade invariante da distribuição bivariada)
     reg = stats.linregress(x, y)
     r_val = float(reg.rvalue)
     r_squared = float(r_val**2)
-    slope = float(reg.slope)
-    intercept = float(reg.intercept)
-
-    diff = y - x
-    bias = float(np.mean(diff))
-    rmse = float(np.sqrt(np.mean(diff**2)))
-    mae = float(np.mean(np.abs(diff)))
 
     x_mean = float(np.mean(x))
     x_std = float(np.std(x))
     y_mean = float(np.mean(y))
     y_std = float(np.std(y))
+
+    # Ajuste de inclinação e intercepto conforme o algoritmo escolhido (LLS ou TLS)
+    algo_upper = algorithm.upper()
+    if algo_upper == "TLS":
+        # Total Least Squares (Regressão Ortogonal / Deming com delta=1)
+        # Minimiza a soma dos quadrados das distâncias perpendiculares euclidianas até a reta:
+        s_xx = float(np.var(x, ddof=1))
+        s_yy = float(np.var(y, ddof=1))
+        s_xy = float(np.cov(x, y)[0, 1])
+        if abs(s_xy) < 1e-9:
+            slope = 1.0
+        else:
+            slope = float(((s_yy - s_xx) + np.sqrt((s_yy - s_xx)**2 + 4.0 * (s_xy**2))) / (2.0 * s_xy))
+        intercept = float(y_mean - slope * x_mean)
+        algo_code = "TLS"
+        algo_name = "Total Least Squares (Mínimos Quadrados Totais / Ortogonal)"
+        algo_desc = "Minimiza a distância ortogonal perpendicular dos pontos até a reta de ajuste (Deming / Gauss-Markov bi-variado)."
+    else:
+        # Linear Least Squares (Mínimos Quadrados Lineares Ordinários)
+        slope = float(reg.slope)
+        intercept = float(reg.intercept)
+        algo_code = "LLS"
+        algo_name = "Linear Least Squares (Mínimos Quadrados Lineares)"
+        algo_desc = "Ajuste clássico por mínimos quadrados ordinários minimizando a soma dos resíduos verticais da medição em relação à referência."
+
+    # Resíduos e métricas em relação ao modelo ajustado (y_pred = slope * x + intercept)
+    y_pred = slope * x + intercept
+    diff = y - y_pred
+    bias = float(np.mean(diff))
+    rmse = float(np.sqrt(np.mean(diff**2)))
+    mae = float(np.mean(np.abs(diff)))
 
     x_min = float(np.min(x))
     x_max = float(np.max(x))
@@ -176,9 +202,9 @@ def compute_reanalysis_measured_correlation(
     equation_str = f"Vmed = {slope:.3f} * Vrean + ({intercept:.3f})" if intercept >= 0 else f"Vmed = {slope:.3f} * Vrean - ({abs(intercept):.3f})"
 
     return {
-        "algorithm": "LLS",
-        "algorithm_name": "Linear Least Squares (Mínimos Quadrados Lineares)",
-        "algorithm_description": "Ajuste clássico de regressão linear por mínimos quadrados ordinários minimizando a soma dos quadrados dos resíduos verticais da medição em relação à referência.",
+        "algorithm": algo_code,
+        "algorithm_name": algo_name,
+        "algorithm_description": algo_desc,
         "n_samples": n_samples,
         "aggregation": aggregation,
         "plant_name": target_plant,

@@ -113,6 +113,8 @@ class PlantCorrelationMetric(BaseModel):
     plant_name: str
     r: float | None = None
     r_squared: float | None = None
+    slope: float | None = None
+    intercept: float | None = None
     rmse: float | None = None
     bias: float | None = None
     mae: float | None = None

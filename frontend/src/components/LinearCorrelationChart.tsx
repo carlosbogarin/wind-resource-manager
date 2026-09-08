@@ -9,6 +9,8 @@ interface LinearCorrelationChartProps {
   ensembleName: string;
   aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
   onChangeAggregation: (agg: 'hourly' | 'daily' | 'weekly' | 'monthly') => void;
+  algorithm?: 'LLS' | 'TLS';
+  onChangeAlgorithm?: (algo: 'LLS' | 'TLS') => void;
   availablePlants?: string[];
   selectedPlant?: string;
   onSelectPlant?: (plant: string) => void;
@@ -22,11 +24,14 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
   ensembleName,
   aggregation,
   onChangeAggregation,
+  algorithm = 'LLS',
+  onChangeAlgorithm,
   availablePlants,
   selectedPlant = 'Média do Conjunto',
   onSelectPlant,
   isLoading,
 }) => {
+  const effectiveAlgo = (data?.algorithm as 'LLS' | 'TLS') || algorithm || 'LLS';
   const chartOption = useMemo(() => {
     if (!data || !data.scatter_points || data.scatter_points.length === 0) {
       return null;
@@ -75,7 +80,8 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
             `;
           }
           if (params.seriesName === 'Reta de Regressão') {
-            return `<span class="text-xs text-zinc-300 font-sans">Ajuste Linear: <b>${data.equation}</b></span>`;
+            const algoLabel = effectiveAlgo === 'TLS' ? 'Ajuste Ortogonal (TLS)' : 'Ajuste Linear (LLS)';
+            return `<span class="text-xs text-zinc-300 font-sans">${algoLabel}: <b>${data.equation}</b></span>`;
           }
           if (params.seriesName === 'Linha 1:1 (Ideal)') {
             return `<span class="text-xs text-zinc-300 font-sans">Reta 1:1 de Referência (y = x)</span>`;
@@ -196,9 +202,17 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
               </span>
             )}
           </div>
-          <p className="text-xs text-zinc-400 mt-1">
-            Metodologia Measure-Correlate-Predict (MCP) via <strong>Mínimos Quadrados Lineares (LLS - Linear Least Squares)</strong>: regressão clássica ordinária que minimiza a soma dos desvios quadráticos verticais das medições das turbinas em relação à série de reanálise de referência.
-          </p>
+          {effectiveAlgo === 'TLS' ? (
+            <p className="text-xs text-zinc-400 mt-1">
+              Metodologia Measure-Correlate-Predict (MCP) via{' '}
+              <strong>Total Least Squares (TLS - Regressão Ortogonal / Deming)</strong>: minimiza a soma dos quadrados das distâncias perpendiculares (ortogonais) euclidianas dos pontos até a reta de ajuste, ideal para quando medição e reanálise possuem incertezas gaussianas de magnitudes comparáveis.
+            </p>
+          ) : (
+            <p className="text-xs text-zinc-400 mt-1">
+              Metodologia Measure-Correlate-Predict (MCP) via{' '}
+              <strong>Mínimos Quadrados Lineares (LLS - Linear Least Squares)</strong>: regressão clássica ordinária que minimiza a soma dos desvios quadráticos verticais das medições das turbinas em relação à série de reanálise de referência (Gauss-Markov).
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -216,6 +230,36 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Seletor de Algoritmo MCP (LLS vs TLS) */}
+          {onChangeAlgorithm && (
+            <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => onChangeAlgorithm('LLS')}
+                className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                  effectiveAlgo === 'LLS'
+                    ? 'bg-cyan-600 text-white shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Linear Least Squares: minimiza os resíduos verticais da medição em relação à reanálise (Gauss-Markov)"
+              >
+                LLS (Linear)
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeAlgorithm('TLS')}
+                className={`px-2.5 py-1.5 rounded-md font-medium transition-colors ${
+                  effectiveAlgo === 'TLS'
+                    ? 'bg-cyan-600 text-white shadow-sm font-semibold'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Total Least Squares: minimiza as distâncias ortogonais perpendiculares dos pontos até a reta (Deming)"
+              >
+                TLS (Ortogonal)
+              </button>
             </div>
           )}
 
@@ -290,12 +334,12 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
               </div>
             </div>
 
-            {/* Equação Linear */}
+            {/* Equação Linear / Ortogonal */}
             <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-xl p-3 flex flex-col justify-between sm:col-span-2 lg:col-span-2">
               <span className="text-[11px] font-medium text-zinc-400 flex items-center justify-between">
-                <span>Equação MCP (Ajuste LLS)</span>
+                <span>Equação MCP (Ajuste {effectiveAlgo})</span>
                 <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
-                  Linear Least Squares
+                  {effectiveAlgo === 'TLS' ? 'Total Least Squares (Ortogonal)' : 'Linear Least Squares'}
                 </span>
               </span>
               <div className="mt-1">

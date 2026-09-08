@@ -158,6 +158,7 @@ export const App: React.FC = () => {
   const [endPeriod, setEndPeriod] = useState<string>('2026-08');
   const [aggregation, setAggregation] = useState<'daily' | 'monthly' | 'hourly'>('daily');
   const [correlationAgg, setCorrelationAgg] = useState<'hourly' | 'daily' | 'weekly' | 'monthly'>('hourly');
+  const [mcpAlgorithm, setMcpAlgorithm] = useState<'LLS' | 'TLS'>('LLS');
   const [selectedPlant, setSelectedPlant] = useState<string>('Média do Conjunto');
   const [activeTab, setActiveTab] = useState<'timeseries' | 'correlation' | 'rose_weibull' | 'profiles'>('timeseries');
   const [notification, setNotification] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
@@ -565,6 +566,7 @@ export const App: React.FC = () => {
       startPeriod,
       endPeriod,
       correlationAgg,
+      mcpAlgorithm,
     ],
     queryFn: () =>
       selectedNode && activeEnsemble?.ensemble_name
@@ -581,6 +583,7 @@ export const App: React.FC = () => {
             start_month: startPeriod,
             end_month: endPeriod,
             aggregation: correlationAgg,
+            algorithm: mcpAlgorithm,
           })
         : Promise.resolve(null),
     enabled: !!selectedNode && !!activeEnsemble?.ensemble_name,
@@ -628,6 +631,7 @@ export const App: React.FC = () => {
       startPeriod,
       endPeriod,
       correlationAgg,
+      mcpAlgorithm,
     ],
     queryFn: () =>
       activeEnsemble?.ensemble_name && currentSubstation
@@ -641,6 +645,7 @@ export const App: React.FC = () => {
             start_month: startPeriod,
             end_month: endPeriod,
             aggregation: correlationAgg,
+            algorithm: mcpAlgorithm,
           })
         : Promise.resolve(undefined),
     enabled: !isManualModule && !!activeEnsemble?.ensemble_name && !!currentSubstation,
@@ -1002,6 +1007,8 @@ export const App: React.FC = () => {
                     selectedNodeId={selectedNode?.node_id}
                     isExtrapolatedActive={isExtrapolatedActive}
                     onSelectSeries={handleSelectRankingSeries}
+                    algorithm={mcpAlgorithm}
+                    onChangeAlgorithm={setMcpAlgorithm}
                     theme={theme}
                   />
                 </section>
@@ -1101,6 +1108,8 @@ export const App: React.FC = () => {
                       ensembleName={activeEnsemble?.ensemble_name || 'Conjunto'}
                       aggregation={correlationAgg}
                       onChangeAggregation={(agg) => setCorrelationAgg(agg)}
+                      algorithm={mcpAlgorithm}
+                      onChangeAlgorithm={setMcpAlgorithm}
                       availablePlants={correlationData?.available_plants || ensemblePlants}
                       selectedPlant={selectedPlant}
                       onSelectPlant={(p) => setSelectedPlant(p)}

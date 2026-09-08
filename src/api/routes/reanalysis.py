@@ -473,6 +473,7 @@ def get_correlation_data(
     start_month: str | None = Query(default=None),
     end_month: str | None = Query(default=None),
     aggregation: str = Query(default="hourly", pattern="^(hourly|daily|weekly|monthly)$"),
+    algorithm: str = Query(default="LLS", pattern="^(LLS|TLS|lls|tls)$", description="Algoritmo MCP: LLS ou TLS"),
 ):
     """Calcula regressão linear concomitante (Measure-Correlate-Predict / MCP) entre reanálise e dados reais medidos das turbinas."""
     try:
@@ -498,6 +499,7 @@ def get_correlation_data(
             measured_df=m_df,
             aggregation=aggregation,
             plant_name=plant_name,
+            algorithm=algorithm,
         )
         if corr_res is None:
             return None
@@ -522,6 +524,7 @@ def get_correlation_matrix(
     start_month: str | None = Query(default=None),
     end_month: str | None = Query(default=None),
     aggregation: str = Query(default="hourly", pattern="^(hourly|daily|weekly|monthly)$"),
+    algorithm: str = Query(default="LLS", pattern="^(LLS|TLS|lls|tls)$", description="Algoritmo MCP: LLS ou TLS"),
 ):
     """Calcula matriz de correlação cruzada entre todas as séries de reanálise em cache (nós e extrapolações)
     e as usinas do conjunto eólico (Média do Conjunto e usinas individuais), determinando os campeões por coluna e global.
@@ -537,6 +540,7 @@ def get_correlation_matrix(
             start_month=start_month,
             end_month=end_month,
             aggregation=aggregation,
+            algorithm=algorithm,
         )
         return matrix
     except Exception as e:

@@ -223,13 +223,13 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
                 Metodologia Measure-Correlate-Predict (MCP) & Algoritmos de Longo Prazo
               </h3>
               <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                Padrão Internacional da Indústria Eólica (Windographer / IEC 61400-12 / MEASNET / NREL)
+                Padrão Internacional da Indústria Eólica (IEC 61400-12-1 / MEASNET / NREL / Rogers et al., 2005)
               </p>
             </div>
           </div>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0 self-start sm:self-auto font-mono">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Algoritmo Ativo: LLS (Linear Least Squares)
+            Algoritmos no WRM: LLS & TLS
           </span>
         </div>
 
@@ -240,48 +240,85 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
           </p>
         </div>
 
-        {/* Algorithm in Wind Resource Manager */}
+        {/* Algorithms in Wind Resource Manager */}
         <div className={`p-4 rounded-xl border ${
           isLight ? 'bg-cyan-50/70 border-cyan-200 text-cyan-950' : 'bg-cyan-950/20 border-cyan-800/40 text-cyan-200'
-        } space-y-2.5 text-xs`}>
+        } space-y-3 text-xs`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-bold text-cyan-700 dark:text-cyan-300 text-sm">
               <TrendingUp className="w-4 h-4" />
-              <span>Algoritmo Utilizado no Wind Resource Manager: Linear Least Squares (LLS)</span>
+              <span>Algoritmos no Wind Resource Manager (WRM): Escolha entre LLS e TLS</span>
             </div>
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 font-bold border border-cyan-500/30">
-              Gauss-Markov BLUE
+              Controle do Usuário
             </span>
           </div>
           <p className="leading-relaxed">
-            O Wind Resource Manager adota como motor primário de correlação e ranking o algoritmo <strong>Linear Least Squares (LLS - Mínimos Quadrados Lineares Clássico)</strong>, idêntico ao modelo de base empregado em softwares de referência da indústria como o <strong>Windographer (UL Renewables)</strong> e <strong>WAsP Engineering</strong>.
+            No <strong>WRM (Wind Resource Manager)</strong>, é disponibilizada ao usuário a possibilidade de escolha direta entre os dois algoritmos lineares mais consolidados na literatura científica e na engenharia eólica internacional: <strong>Linear Least Squares (LLS)</strong> e <strong>Total Least Squares (TLS - Regressão Ortogonal / Deming)</strong>. Ambas as formulações recalculam dinamicamente a matriz comparativa de ranking de nós/extrapolações e as retas de correlação nos gráficos MCP.
           </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            <div className={`p-3 rounded-lg font-mono text-[11px] ${isLight ? 'bg-white text-slate-800 border border-slate-200' : 'bg-zinc-950 text-cyan-300 border border-zinc-800'}`}>
-              <strong>Função Objetivo (Minimização Residual Vertical):</strong><br />
-              min_(a, b) Σ_i [ y_i - ( a · x_i + b ) ]²<br /><br />
-              <strong>Inclinação (Slope) e Intercepto:</strong><br />
-              a = r · ( s_y / s_x ) = Σ [ (x_i - x̄)(y_i - ȳ) ] / Σ [ (x_i - x̄)² ]<br />
-              b = ȳ - a · x̄
+            {/* LLS */}
+            <div className={`p-3.5 rounded-xl border space-y-2 ${
+              isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 font-mono text-xs">
+                  1. Linear Least Squares (LLS)
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border border-emerald-500/20 font-mono">
+                  Gauss-Markov BLUE
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Minimiza a soma dos quadrados dos <strong>resíduos verticais</strong> na variável dependente (medição anemométrica no parque $y_i$). Assume que a incerteza estatística concentra-se predominantemente no sítio alvo, tratando a reanálise como preditor $x_i$ de referência.
+              </p>
+              <div className={`p-2.5 rounded-lg font-mono text-[10px] space-y-1 ${
+                isLight ? 'bg-slate-50 text-slate-800' : 'bg-zinc-900 text-cyan-300'
+              }`}>
+                <div><strong>Função Objetivo:</strong> min Σ [y_i - (a·x_i + b)]²</div>
+                <div><strong>Inclinação (Slope):</strong> a = r · (s_y / s_x) = Σ[(x - x̄)(y - ȳ)] / Σ[(x - x̄)²]</div>
+                <div><strong>Intercepto:</strong> b = ȳ - a · x̄</div>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
+                *Propriedade:* Estimador linear não viesado ótimo (Gauss-Markov). A variância prevista é s_pred = r · s_y (Derrick, 1992; Rogers et al., 2005).
+              </p>
             </div>
-            <div className={`p-3 rounded-lg font-mono text-[11px] ${isLight ? 'bg-white text-slate-800 border border-slate-200' : 'bg-zinc-950 text-cyan-300 border border-zinc-800'}`}>
-              <strong>Coeficiente de Pearson (R):</strong><br />
-              r = Σ [ (x_i - x̄)(y_i - ȳ) ] / [ sqrt( Σ(x_i - x̄)² ) · sqrt( Σ(y_i - ȳ)² ) ]<br /><br />
-              <strong>Determinação (R²) & Incerteza (RMSE):</strong><br />
-              R² = r² &nbsp;&nbsp;[Fração da variância explicada]<br />
-              RMSE = sqrt( (1/N) · Σ [ y_i - (a · x_i + b) ]² )
+
+            {/* TLS */}
+            <div className={`p-3.5 rounded-xl border space-y-2 ${
+              isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-zinc-950 border-zinc-800 text-zinc-200'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-cyan-600 dark:text-cyan-400 font-mono text-xs">
+                  2. Total Least Squares (TLS / Ortogonal)
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 font-semibold border border-cyan-500/20 font-mono">
+                  Deming / ODR
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+                Minimiza a soma dos quadrados das <strong>distâncias ortogonais perpendiculares euclidianas</strong> de cada ponto $(x_i, y_i)$ até a reta ajustada. Ideal quando tanto a reanálise ($x$) quanto o anemômetro do parque ($y$) contêm erros estocásticos de magnitudes comparáveis (Deming, 1943; Golub & Van Loan, 1980).
+              </p>
+              <div className={`p-2.5 rounded-lg font-mono text-[10px] space-y-1 ${
+                isLight ? 'bg-slate-50 text-slate-800' : 'bg-zinc-900 text-cyan-300'
+              }`}>
+                <div><strong>Função Objetivo:</strong> min Σ d_perp² = Σ [y_i - a·x_i - b]² / (1 + a²)</div>
+                <div><strong>Inclinação Analítica:</strong> a = [ (s_yy - s_xx) + √((s_yy - s_xx)² + 4·s_xy²) ] / (2·s_xy)</div>
+                <div><strong>Intercepto:</strong> b = ȳ - a · x̄</div>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400 italic">
+                *Propriedade:* Trata simetricamente ambas as variáveis, prevenindo compressão artificial da cauda de ventos altos (Rogers et al., 2005).
+              </p>
             </div>
           </div>
-          <p className="text-[11px] opacity-90 leading-relaxed pt-1">
-            <strong>Fundamento Teórico & Propriedades:</strong> Pelo <em>Teorema de Gauss-Markov</em>, o LLS produz o melhor estimador linear não viesado (BLUE) para os resíduos verticais. Uma característica matemática importante a destacar é que a variância da série predita é proporcional a r² (s_pred = r · s_y). Para correlações elevadas (r &gt; 0,80 a 0,85), essa compressão é reduzida, conferindo alta estabilidade contra ruídos de alta frequência presentes na reanálise (Derrick, 1992; Rogers et al., 2005).
-          </p>
         </div>
 
-        {/* 8 Algorithms Catalog from Windographer & Literature */}
+        {/* 8 Algorithms Catalog from Literature */}
         <div className="space-y-3 pt-2">
           <div className="flex items-center gap-2 font-bold text-slate-900 dark:text-zinc-100 text-xs">
             <Table className="w-4 h-4 text-emerald-500" />
-            <span>Catálogo e Comparativo Teórico dos 8 Algoritmos de Correlação de Vento (Padrão Windographer & Literatura Científica)</span>
+            <span>Catálogo e Comparativo Teórico dos 8 Métodos de Correlação de Vento (Literatura Científica & Padrões Normativos)</span>
           </div>
 
           <div className="overflow-x-auto rounded-xl border border-slate-200/80 dark:border-zinc-800">
@@ -310,12 +347,12 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
                     Padrão clássico da indústria. Minimização estrita dos resíduos na variável dependente (medição no parque). Robusto contra outliers na referência.
                   </td>
                   <td className="py-2 px-2 text-center">
-                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500 text-white font-bold">Ativo</span>
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500 text-white font-bold">Disponível</span>
                   </td>
                 </tr>
 
-                <tr>
-                  <td className="py-2 px-3 font-semibold text-slate-800 dark:text-zinc-200">
+                <tr className={isLight ? 'bg-cyan-50/30 font-medium' : 'bg-cyan-950/20 font-medium'}>
+                  <td className="py-2 px-3 font-semibold text-cyan-700 dark:text-cyan-300">
                     Total Least Squares
                   </td>
                   <td className="py-2 px-2 text-center font-mono font-bold text-cyan-600 dark:text-cyan-400">TLS</td>
@@ -324,7 +361,9 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
                   <td className="py-2 px-3 text-slate-600 dark:text-zinc-300">
                     Regressão Ortogonal (Deming / OLS Bisector). Minimiza distâncias perpendiculares euclidianas. Ideal quando referência e alvo possuem incertezas gaussianas de magnitude comparável.
                   </td>
-                  <td className="py-2 px-2 text-center text-slate-400 text-[10px]">—</td>
+                  <td className="py-2 px-2 text-center">
+                    <span className="px-1.5 py-0.5 rounded text-[9px] bg-cyan-600 text-white font-bold">Disponível</span>
+                  </td>
                 </tr>
 
                 <tr>
@@ -542,8 +581,15 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
           <li className="flex items-start gap-2">
             <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[12]</span>
             <div>
-              <strong>Woods, J. C., & Lambert, T. W. (2005).</strong> <em>"Matrix method implementation for synthetic long-term time series in wind resource assessment"</em>. UL Renewables / Mistaya Engineering Technical Whitepaper.
-              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Fundamentação do método Matrix Time Series (MTS) implementado no software Windographer.</span>
+              <strong>Golub, G. H., & Van Loan, C. F. (1980).</strong> <em>"An Analysis of the Total Least Squares Problem"</em>. SIAM Journal on Numerical Analysis, 17(6), pp. 883–893.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Solução algébrica formal e propriedades computacionais do método de Total Least Squares (TLS / Regressão Ortogonal).</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[13]</span>
+            <div>
+              <strong>Deming, W. E. (1943).</strong> <em>"Statistical Adjustment of Data"</em>. John Wiley & Sons, New York.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Tratamento estatístico de erros de medição bivariados simultâneos (regressão ortogonal de Deming).</span>
             </div>
           </li>
         </ul>

@@ -135,6 +135,7 @@ export interface CorrelationParams {
   start_month?: string;
   end_month?: string;
   aggregation?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  algorithm?: 'LLS' | 'TLS';
 }
 
 export const fetchCorrelation = async (params: CorrelationParams): Promise<CorrelationResponse | null> => {
@@ -154,6 +155,7 @@ export interface CorrelationMatrixParams {
   start_month?: string;
   end_month?: string;
   aggregation?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+  algorithm?: 'LLS' | 'TLS';
 }
 
 export const fetchCorrelationMatrix = async (

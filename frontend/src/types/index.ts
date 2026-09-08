@@ -287,6 +287,8 @@ export interface PlantCorrelationMetric {
   plant_name: string;
   r: number | null;
   r_squared: number | null;
+  slope?: number | null;
+  intercept?: number | null;
   rmse: number | null;
   bias: number | null;
   mae: number | null;

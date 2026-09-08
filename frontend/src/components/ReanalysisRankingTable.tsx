@@ -23,6 +23,8 @@ interface ReanalysisRankingTableProps {
   selectedNodeId?: string;
   isExtrapolatedActive: boolean;
   onSelectSeries: (series: SeriesCorrelationRow) => void;
+  algorithm?: 'LLS' | 'TLS';
+  onChangeAlgorithm?: (algo: 'LLS' | 'TLS') => void;
   theme?: 'light' | 'dark';
 }
 
@@ -32,10 +34,13 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
   selectedNodeId,
   isExtrapolatedActive,
   onSelectSeries,
+  algorithm = 'LLS',
+  onChangeAlgorithm,
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
   const [hoveredPlant, setHoveredPlant] = useState<string | null>(null);
+  const effectiveAlgo = (data?.algorithm as 'LLS' | 'TLS') || algorithm || 'LLS';
 
   if (isLoading) {
     return (
@@ -94,43 +99,89 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
                   {series.length} séries em cache
                 </span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-mono">
-                  Algoritmo: LLS (Linear Least Squares)
+                  Algoritmo: {effectiveAlgo === 'TLS' ? 'TLS (Ortogonal)' : 'LLS (Linear)'}
                 </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Desempenho correlativo concomitante (MCP) via <strong>Mínimos Quadrados Lineares (LLS)</strong> das séries de reanálise contra as medições anemométricas reais de cada parque do conjunto
+                Desempenho correlativo concomitante (MCP) via{' '}
+                <strong>
+                  {effectiveAlgo === 'TLS'
+                    ? 'Total Least Squares (TLS - Regressão Ortogonal)'
+                    : 'Mínimos Quadrados Lineares (LLS)'}
+                </strong>{' '}
+                das séries de reanálise contra as medições anemométricas reais de cada parque do conjunto
               </p>
             </div>
           </div>
         </div>
 
-        {/* Global Champion Callout Pill */}
-        {global_champion && (
-          <div
-            className={`flex items-center gap-3 px-3.5 py-2 rounded-xl border transition-all ${
-              isLight
-                ? 'bg-amber-50/70 border-amber-200/80 text-amber-950'
-                : 'bg-amber-500/10 border-amber-500/25 text-amber-200'
-            }`}
-          >
-            <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500">
-              <Trophy className="w-4 h-4" />
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Seletor de Algoritmo MCP (LLS vs TLS) */}
+          {onChangeAlgorithm && (
+            <div
+              className={`flex items-center gap-1 p-1 rounded-xl border text-xs font-semibold ${
+                isLight ? 'bg-slate-100 border-slate-200' : 'bg-zinc-900 border-zinc-800'
+              }`}
+            >
+              <button
+                type="button"
+                onClick={() => onChangeAlgorithm('LLS')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  effectiveAlgo === 'LLS'
+                    ? 'bg-cyan-600 text-white shadow-sm font-bold'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Linear Least Squares: minimiza a soma dos resíduos verticais da medição em relação à reanálise (Gauss-Markov)"
+              >
+                LLS (Linear)
+              </button>
+              <button
+                type="button"
+                onClick={() => onChangeAlgorithm('TLS')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  effectiveAlgo === 'TLS'
+                    ? 'bg-cyan-600 text-white shadow-sm font-bold'
+                    : isLight
+                    ? 'text-slate-600 hover:text-slate-900'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Total Least Squares: minimiza as distâncias ortogonais perpendiculares dos pontos até a reta (Deming)"
+              >
+                TLS (Ortogonal)
+              </button>
             </div>
-            <div className="text-xs">
-              <div className="font-semibold flex items-center gap-1.5">
-                <span>Campeão Global:</span>
-                <span className="text-amber-600 dark:text-amber-400 font-bold">
-                  {global_champion.series_name}
-                </span>
+          )}
+
+          {/* Global Champion Callout Pill */}
+          {global_champion && (
+            <div
+              className={`flex items-center gap-3 px-3.5 py-2 rounded-xl border transition-all ${
+                isLight
+                  ? 'bg-amber-50/70 border-amber-200/80 text-amber-950'
+                  : 'bg-amber-500/10 border-amber-500/25 text-amber-200'
+              }`}
+            >
+              <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-500">
+                <Trophy className="w-4 h-4" />
               </div>
-              <div className="text-[11px] opacity-80 flex items-center gap-2">
-                <span>Score R: <strong>{global_champion.global_score.toFixed(4)}</strong></span>
-                <span>•</span>
-                <span>{global_champion.wins_count} {global_champion.wins_count === 1 ? 'vitória' : 'vitórias'}</span>
+              <div className="text-xs">
+                <div className="font-semibold flex items-center gap-1.5">
+                  <span>Campeão Global:</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
+                    {global_champion.series_name}
+                  </span>
+                </div>
+                <div className="text-[11px] opacity-80 flex items-center gap-2">
+                  <span>Score R: <strong>{global_champion.global_score.toFixed(4)}</strong></span>
+                  <span>•</span>
+                  <span>{global_champion.wins_count} {global_champion.wins_count === 1 ? 'vitória' : 'vitórias'}</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Interactive Table Container */}
@@ -301,7 +352,15 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
                             }`}
                             title={`R: ${metric.r.toFixed(4)} | R²: ${(
                               (metric.r_squared || 0) * 100
-                            ).toFixed(1)}% | RMSE: ${metric.rmse} m/s | Bias: ${
+                            ).toFixed(1)}%${
+                              metric.slope !== undefined && metric.slope !== null
+                                ? ` | Eq: y = ${metric.slope.toFixed(3)}x ${
+                                    (metric.intercept ?? 0) >= 0
+                                      ? `+ ${(metric.intercept ?? 0).toFixed(3)}`
+                                      : `- ${Math.abs(metric.intercept ?? 0).toFixed(3)}`
+                                  }`
+                                : ''
+                            } | RMSE: ${metric.rmse} m/s | Bias: ${
                               metric.bias
                             } m/s | ${metric.n_samples.toLocaleString('pt-BR')} amostras`}
                           >
@@ -410,10 +469,13 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
           </div>
           <div className="flex items-center gap-1.5">
             <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-bold">
-              LLS
+              {effectiveAlgo}
             </span>
             <span>
-              <strong>Algoritmo:</strong> Mínimos Quadrados Lineares (Linear Least Squares)
+              <strong>Algoritmo:</strong>{' '}
+              {effectiveAlgo === 'TLS'
+                ? 'Total Least Squares (Mínimos Quadrados Totais / Ortogonal)'
+                : 'Mínimos Quadrados Lineares (Linear Least Squares)'}
             </span>
           </div>
         </div>

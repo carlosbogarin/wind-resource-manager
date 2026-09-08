@@ -162,6 +162,7 @@ def compute_ensemble_correlation_matrix(
     start_month: str | None = None,
     end_month: str | None = None,
     aggregation: str = "hourly",
+    algorithm: str = "LLS",
 ) -> dict[str, Any]:
     """Calcula a matriz de correlação cruzada entre todas as séries de reanálise em cache e as usinas do conjunto ONS.
     
@@ -289,7 +290,26 @@ def compute_ensemble_correlation_matrix(
                 reg = stats.linregress(x, y)
                 r_val = float(reg.rvalue)
                 r_sq = float(r_val**2)
-                diff = y - x
+
+                x_mean = float(np.mean(x))
+                y_mean = float(np.mean(y))
+
+                if algorithm.upper() == "TLS":
+                    # Total Least Squares (Regressão Ortogonal / Deming)
+                    s_xx = float(np.var(x, ddof=1))
+                    s_yy = float(np.var(y, ddof=1))
+                    s_xy = float(np.cov(x, y)[0, 1])
+                    if abs(s_xy) < 1e-9:
+                        slope = 1.0
+                    else:
+                        slope = float(((s_yy - s_xx) + np.sqrt((s_yy - s_xx)**2 + 4.0 * (s_xy**2))) / (2.0 * s_xy))
+                    intercept = float(y_mean - slope * x_mean)
+                else:
+                    # Linear Least Squares (LLS)
+                    slope = float(reg.slope)
+                    intercept = float(reg.intercept)
+
+                diff = y - (slope * x + intercept)
                 rmse = float(np.sqrt(np.mean(diff**2)))
                 bias = float(np.mean(diff))
                 mae = float(np.mean(np.abs(diff)))
@@ -298,6 +318,8 @@ def compute_ensemble_correlation_matrix(
                     "plant_name": p,
                     "r": round(r_val, 4),
                     "r_squared": round(r_sq, 4),
+                    "slope": round(slope, 3),
+                    "intercept": round(intercept, 3),
                     "rmse": round(rmse, 2),
                     "bias": round(bias, 2),
                     "mae": round(mae, 2),
@@ -402,8 +424,12 @@ def compute_ensemble_correlation_matrix(
         "ensemble_name": ensemble_name,
         "id_ons": id_ons,
         "aggregation": aggregation,
-        "algorithm": "LLS",
-        "algorithm_name": "Linear Least Squares (Mínimos Quadrados Lineares)",
+        "algorithm": algorithm.upper(),
+        "algorithm_name": (
+            "Total Least Squares (Mínimos Quadrados Totais / Ortogonal)"
+            if algorithm.upper() == "TLS"
+            else "Linear Least Squares (Mínimos Quadrados Lineares)"
+        ),
         "has_data": True,
         "plants": plants,
         "series": series_rows,
