@@ -279,3 +279,55 @@ export interface AnalyticsData {
   monthly_seasonality: MonthlySeasonalityItem[];
   ons_correlation: ONSCorrelationItem[];
 }
+
+export interface PlantCorrelationMetric {
+  plant_name: string;
+  r: number | null;
+  r_squared: number | null;
+  rmse: number | null;
+  bias: number | null;
+  mae: number | null;
+  n_samples: number;
+  is_best: boolean;
+}
+
+export interface SeriesCorrelationRow {
+  series_id: string;
+  series_name: string;
+  model: 'ERA5' | 'MERRA-2';
+  series_type: 'node' | 'synthetic';
+  position: string;
+  cardinal_direction: string;
+  distance_km: number;
+  bearing_deg: number;
+  latitude: number;
+  longitude: number;
+  weight: number;
+  is_cached: boolean;
+  global_score: number | null;
+  wins_count: number;
+  metrics_by_plant: Record<string, PlantCorrelationMetric>;
+}
+
+export interface ChampionInfo {
+  series_id: string;
+  series_name: string;
+  model: string;
+  series_type: string;
+  global_score: number;
+  ensemble_mean_r: number;
+  wins_count: number;
+  total_plants: number;
+}
+
+export interface CorrelationMatrixResponse {
+  ensemble_name: string;
+  id_ons?: string | null;
+  aggregation: string;
+  has_data: boolean;
+  plants: string[];
+  series: SeriesCorrelationRow[];
+  best_per_plant: Record<string, string>;
+  global_champion: ChampionInfo | null;
+  message?: string | null;
+}

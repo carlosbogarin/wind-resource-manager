@@ -9,17 +9,19 @@ import {
   fetchTimeSeries,
   fetchAnalytics,
   fetchCorrelation,
+  fetchCorrelationMatrix,
   downloadNodeData,
   fetchDateRange,
   fetchEnsemblePlants,
 } from './services/api';
-import { ReanalysisNode, Ensemble, CompanySummary } from './types';
+import { ReanalysisNode, Ensemble, CompanySummary, SeriesCorrelationRow } from './types';
 import { Sidebar, ActiveModule } from './components/Sidebar';
 import { Header } from './components/Header';
 import { CompanySelector } from './components/CompanySelector';
 import { EnsembleSelector } from './components/EnsembleSelector';
 import { ManualCoordinatesSelector } from './components/ManualCoordinatesSelector';
 import { VortexExtrapolationCard } from './components/VortexExtrapolationCard';
+import { ReanalysisRankingTable } from './components/ReanalysisRankingTable';
 import { MapView } from './components/MapView';
 import { NodesGridTable } from './components/NodesGridTable';
 import { TimeSeriesChart } from './components/TimeSeriesChart';
@@ -259,6 +261,7 @@ export const App: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['timeseries'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['correlation'] });
+      queryClient.invalidateQueries({ queryKey: ['correlation-matrix'] });
       queryClient.invalidateQueries({ queryKey: ['nodes'] });
       queryClient.invalidateQueries({ queryKey: ['nodes-manual'] });
     },
@@ -338,6 +341,7 @@ export const App: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['timeseries'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['correlation'] });
+      queryClient.invalidateQueries({ queryKey: ['correlation-matrix'] });
     },
     onError: (err: any) => {
       setNotification({
@@ -610,6 +614,88 @@ export const App: React.FC = () => {
         : Promise.resolve(null),
     enabled: !!selectedNode,
   });
+
+  // 9.1 Fetch Ensemble Reanalysis Correlation Matrix & Ranking
+  const { data: correlationMatrixData, isLoading: isLoadingCorrelationMatrix } = useQuery({
+    queryKey: [
+      'correlation-matrix',
+      activeEnsemble?.ensemble_name,
+      currentSubstation?.latitude,
+      currentSubstation?.longitude,
+      selectedIdOns,
+      startYear,
+      endYear,
+      startPeriod,
+      endPeriod,
+      correlationAgg,
+    ],
+    queryFn: () =>
+      activeEnsemble?.ensemble_name && currentSubstation
+        ? fetchCorrelationMatrix({
+            ensemble_name: activeEnsemble.ensemble_name,
+            latitude: currentSubstation.latitude,
+            longitude: currentSubstation.longitude,
+            id_ons: selectedIdOns || undefined,
+            start_year: startYear,
+            end_year: endYear,
+            start_month: startPeriod,
+            end_month: endPeriod,
+            aggregation: correlationAgg,
+          })
+        : Promise.resolve(undefined),
+    enabled: !isManualModule && !!activeEnsemble?.ensemble_name && !!currentSubstation,
+  });
+
+  const handleSelectRankingSeries = (series: SeriesCorrelationRow) => {
+    if (series.series_type === 'synthetic') {
+      const synthNode: ReanalysisNode = {
+        node_id: series.series_id,
+        model: series.model,
+        position: 'SYNTHETIC',
+        latitude: series.latitude,
+        longitude: series.longitude,
+        distance_km: 0,
+        bearing_deg: 0,
+        cardinal_direction: 'Local',
+        weight: 1.0,
+        is_cached: true,
+        is_interpolated: true,
+      };
+      if (selectedNode && !selectedNode.is_interpolated) {
+        setSavedGridNode(selectedNode);
+      }
+      setSelectedNode(synthNode);
+      setIsExtrapolatedActive(true);
+      setExtrapolatedModel(series.model);
+    } else {
+      const allNodes = currentNodesData ? [...currentNodesData.era5_nodes, ...currentNodesData.merra2_nodes] : [];
+      const matching = allNodes.find(
+        (n) => n.node_id === series.series_id || (n.position === series.position && n.model === series.model)
+      );
+      if (matching) {
+        setSelectedNode(matching);
+      } else {
+        setSelectedNode({
+          node_id: series.series_id,
+          model: series.model,
+          position: series.position as any,
+          latitude: series.latitude,
+          longitude: series.longitude,
+          distance_km: series.distance_km,
+          bearing_deg: series.bearing_deg,
+          cardinal_direction: series.cardinal_direction,
+          weight: series.weight,
+          is_cached: true,
+          is_interpolated: false,
+        });
+      }
+      setIsExtrapolatedActive(false);
+    }
+    setNotification({
+      type: 'info',
+      text: `Série de reanálise selecionada: ${series.series_name} (${series.model}).`,
+    });
+  };
 
   return (
     <div className={`min-h-screen flex ${isLight ? 'bg-slate-50 text-slate-900' : 'bg-zinc-950 text-zinc-100'}`}>
@@ -905,6 +991,20 @@ export const App: React.FC = () => {
                   endPeriod={endPeriod}
                   isCached={selectedNode.is_cached}
                 />
+              )}
+
+              {/* Reanalysis Ranking & Cross-Correlation Matrix Table */}
+              {!isManualModule && currentSubstation && (
+                <section>
+                  <ReanalysisRankingTable
+                    data={correlationMatrixData}
+                    isLoading={isLoadingCorrelationMatrix}
+                    selectedNodeId={selectedNode?.node_id}
+                    isExtrapolatedActive={isExtrapolatedActive}
+                    onSelectSeries={handleSelectRankingSeries}
+                    theme={theme}
+                  />
+                </section>
               )}
 
               {/* Analytical Tabs */}

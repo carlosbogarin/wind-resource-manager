@@ -107,3 +107,56 @@ class InterpolationResponse(BaseModel):
     weights: dict[str, float]
     bounding_nodes: list[dict[str, Any]]
     message: str
+
+
+class PlantCorrelationMetric(BaseModel):
+    plant_name: str
+    r: float | None = None
+    r_squared: float | None = None
+    rmse: float | None = None
+    bias: float | None = None
+    mae: float | None = None
+    n_samples: int = 0
+    is_best: bool = False
+
+
+class SeriesCorrelationRow(BaseModel):
+    series_id: str
+    series_name: str
+    model: str
+    series_type: str
+    position: str
+    cardinal_direction: str
+    distance_km: float
+    bearing_deg: float
+    latitude: float
+    longitude: float
+    weight: float
+    is_cached: bool = True
+    global_score: float | None = None
+    wins_count: int = 0
+    metrics_by_plant: dict[str, PlantCorrelationMetric] = Field(default_factory=dict)
+
+
+class ChampionInfo(BaseModel):
+    series_id: str
+    series_name: str
+    model: str
+    series_type: str
+    global_score: float
+    ensemble_mean_r: float
+    wins_count: int
+    total_plants: int
+
+
+class CorrelationMatrixResponse(BaseModel):
+    ensemble_name: str
+    id_ons: str | None = None
+    aggregation: str
+    has_data: bool
+    plants: list[str] = Field(default_factory=list)
+    series: list[SeriesCorrelationRow] = Field(default_factory=list)
+    best_per_plant: dict[str, str] = Field(default_factory=dict)
+    global_champion: ChampionInfo | None = None
+    message: str | None = None
+

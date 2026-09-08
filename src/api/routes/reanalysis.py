@@ -6,6 +6,7 @@ import polars as pl
 from fastapi import APIRouter, HTTPException, Query
 
 from src.analytics.correlation import compute_reanalysis_measured_correlation
+from src.analytics.correlation_matrix import compute_ensemble_correlation_matrix
 from src.analytics.profiles import compute_diurnal_profile, compute_monthly_seasonality, correlate_with_ons_fc
 from src.analytics.spatial_interpolation import (
     interpolate_reanalysis_to_point,
@@ -15,6 +16,7 @@ from src.analytics.weibull import fit_weibull
 from src.analytics.wind_rose import calculate_wind_rose
 from src.api.schemas.reanalysis import (
     AnalyticsResponse,
+    CorrelationMatrixResponse,
     DateRangeResponse,
     DownloadRequest,
     DownloadResponse,
@@ -507,6 +509,40 @@ def get_correlation_data(
     except Exception as e:
         logger.error(f"Erro ao calcular correlação concomitante: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/correlation-matrix", response_model=CorrelationMatrixResponse)
+def get_correlation_matrix(
+    ensemble_name: str = Query(..., description="Nome do conjunto eólico ONS"),
+    latitude: float = Query(..., description="Latitude central do conjunto"),
+    longitude: float = Query(..., description="Longitude central do conjunto"),
+    id_ons: str | None = Query(default=None),
+    start_year: int = Query(default=1996),
+    end_year: int = Query(default=2026),
+    start_month: str | None = Query(default=None),
+    end_month: str | None = Query(default=None),
+    aggregation: str = Query(default="hourly", pattern="^(hourly|daily|weekly|monthly)$"),
+):
+    """Calcula matriz de correlação cruzada entre todas as séries de reanálise em cache (nós e extrapolações)
+    e as usinas do conjunto eólico (Média do Conjunto e usinas individuais), determinando os campeões por coluna e global.
+    """
+    try:
+        matrix = compute_ensemble_correlation_matrix(
+            ensemble_name=ensemble_name,
+            latitude=latitude,
+            longitude=longitude,
+            id_ons=id_ons,
+            start_year=start_year,
+            end_year=end_year,
+            start_month=start_month,
+            end_month=end_month,
+            aggregation=aggregation,
+        )
+        return matrix
+    except Exception as e:
+        logger.error(f"Erro ao calcular matriz de correlação para '{ensemble_name}': {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 
 

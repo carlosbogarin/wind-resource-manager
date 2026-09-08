@@ -13,6 +13,7 @@ import {
   EnsemblePlantsResponse,
   InterpolationRequest,
   InterpolationResponse,
+  CorrelationMatrixResponse,
 } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -142,6 +143,28 @@ export const fetchCorrelation = async (params: CorrelationParams): Promise<Corre
   });
   return data;
 };
+
+export interface CorrelationMatrixParams {
+  ensemble_name: string;
+  latitude: number;
+  longitude: number;
+  id_ons?: string;
+  start_year?: number;
+  end_year?: number;
+  start_month?: string;
+  end_month?: string;
+  aggregation?: 'hourly' | 'daily' | 'weekly' | 'monthly';
+}
+
+export const fetchCorrelationMatrix = async (
+  params: CorrelationMatrixParams
+): Promise<CorrelationMatrixResponse> => {
+  const { data } = await api.get<CorrelationMatrixResponse>('/reanalysis/correlation-matrix', {
+    params,
+  });
+  return data;
+};
+
 
 export interface OnsMeasuredParams {
   ensemble_name: string;

@@ -392,6 +392,29 @@ def test_persistent_node_catalog_and_cross_project_cache():
         assert is_node_cached_in_db(node["model"], node["latitude"], node["longitude"]) is True
 
 
+def test_correlation_matrix_endpoint():
+    client = TestClient(app)
+    resp = client.get(
+        "/api/reanalysis/correlation-matrix",
+        params={
+            "ensemble_name": "Conj. Caetité 123",
+            "latitude": -14.1863,
+            "longitude": -42.4934,
+            "id_ons": "CJU_BACAE",
+            "aggregation": "hourly",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["has_data"] is True
+    assert "Média do Conjunto" in data["plants"]
+    assert len(data["series"]) > 0
+    assert data["global_champion"] is not None
+    assert "series_id" in data["global_champion"]
+    assert len(data["best_per_plant"]) > 0
+
+
+
 
 
 
