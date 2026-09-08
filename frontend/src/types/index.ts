@@ -167,6 +167,9 @@ export interface CorrelationResponse {
   ensemble_name: string;
   plant_name?: string;
   available_plants?: string[];
+  algorithm?: string;
+  algorithm_name?: string;
+  algorithm_description?: string;
   n_samples: number;
   aggregation: 'hourly' | 'daily' | 'weekly' | 'monthly';
   pearson_r: number;
@@ -324,6 +327,8 @@ export interface CorrelationMatrixResponse {
   ensemble_name: string;
   id_ons?: string | null;
   aggregation: string;
+  algorithm?: string;
+  algorithm_name?: string;
   has_data: boolean;
   plants: string[];
   series: SeriesCorrelationRow[];

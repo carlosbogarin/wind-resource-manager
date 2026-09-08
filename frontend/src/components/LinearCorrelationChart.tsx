@@ -181,6 +181,9 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
             <h4 className="text-base font-bold text-white flex items-center gap-2">
               <span>Correlação Linear MCP: Reanálise vs Dados Medidos ONS</span>
             </h4>
+            <span className="text-xs px-2 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold inline-flex items-center gap-1">
+              Algoritmo: LLS (Linear Least Squares)
+            </span>
             <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 font-mono">
               {model} ({nodeTitle})
             </span>
@@ -194,7 +197,7 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
             )}
           </div>
           <p className="text-xs text-zinc-400 mt-1">
-            Metodologia Measure-Correlate-Predict (MCP): calibragem entre velocidades de vento da reanálise atmosférica e medições reais dos anemômetros dos aerogeradores (ONS EOL Detailed).
+            Metodologia Measure-Correlate-Predict (MCP) via <strong>Mínimos Quadrados Lineares (LLS - Linear Least Squares)</strong>: regressão clássica ordinária que minimiza a soma dos desvios quadráticos verticais das medições das turbinas em relação à série de reanálise de referência.
           </p>
         </div>
 
@@ -289,7 +292,12 @@ export const LinearCorrelationChart: React.FC<LinearCorrelationChartProps> = ({
 
             {/* Equação Linear */}
             <div className="bg-zinc-950/70 border border-zinc-800/80 rounded-xl p-3 flex flex-col justify-between sm:col-span-2 lg:col-span-2">
-              <span className="text-[11px] font-medium text-zinc-400">Equação do Modelo MCP</span>
+              <span className="text-[11px] font-medium text-zinc-400 flex items-center justify-between">
+                <span>Equação MCP (Ajuste LLS)</span>
+                <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                  Linear Least Squares
+                </span>
+              </span>
               <div className="mt-1">
                 <span className="text-sm font-bold font-mono text-cyan-400 block truncate">
                   {data.equation}

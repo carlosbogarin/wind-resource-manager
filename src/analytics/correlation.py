@@ -176,6 +176,9 @@ def compute_reanalysis_measured_correlation(
     equation_str = f"Vmed = {slope:.3f} * Vrean + ({intercept:.3f})" if intercept >= 0 else f"Vmed = {slope:.3f} * Vrean - ({abs(intercept):.3f})"
 
     return {
+        "algorithm": "LLS",
+        "algorithm_name": "Linear Least Squares (Mínimos Quadrados Lineares)",
+        "algorithm_description": "Ajuste clássico de regressão linear por mínimos quadrados ordinários minimizando a soma dos quadrados dos resíduos verticais da medição em relação à referência.",
         "n_samples": n_samples,
         "aggregation": aggregation,
         "plant_name": target_plant,

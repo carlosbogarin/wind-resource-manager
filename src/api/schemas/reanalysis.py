@@ -153,10 +153,13 @@ class CorrelationMatrixResponse(BaseModel):
     ensemble_name: str
     id_ons: str | None = None
     aggregation: str
+    algorithm: str = "LLS"
+    algorithm_name: str = "Linear Least Squares (Mínimos Quadrados Lineares)"
     has_data: bool
     plants: list[str] = Field(default_factory=list)
     series: list[SeriesCorrelationRow] = Field(default_factory=list)
     best_per_plant: dict[str, str] = Field(default_factory=dict)
     global_champion: ChampionInfo | None = None
     message: str | None = None
+
 

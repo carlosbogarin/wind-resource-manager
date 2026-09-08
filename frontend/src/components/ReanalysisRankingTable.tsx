@@ -88,14 +88,17 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
               <Table className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                Matriz Comparativa de Correlação & Ranking de Reanálises
+              <h3 className="text-base font-bold tracking-tight text-slate-900 dark:text-zinc-100 flex items-center gap-2 flex-wrap">
+                <span>Matriz Comparativa de Correlação & Ranking de Reanálises</span>
                 <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                   {series.length} séries em cache
                 </span>
+                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-mono">
+                  Algoritmo: LLS (Linear Least Squares)
+                </span>
               </h3>
               <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
-                Desempenho correlativo concomitante (MCP) das séries de reanálise contra as medições anemométricas reais de cada parque do conjunto
+                Desempenho correlativo concomitante (MCP) via <strong>Mínimos Quadrados Lineares (LLS)</strong> das séries de reanálise contra as medições anemométricas reais de cada parque do conjunto
               </p>
             </div>
           </div>
@@ -403,6 +406,14 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
             <Trophy className="w-3 h-3 text-amber-500" />
             <span>
               <strong>Campeão Global:</strong> Maior correlação média entre as usinas
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="px-1.5 py-0.2 rounded font-mono text-[9px] bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-bold">
+              LLS
+            </span>
+            <span>
+              <strong>Algoritmo:</strong> Mínimos Quadrados Lineares (Linear Least Squares)
             </span>
           </div>
         </div>

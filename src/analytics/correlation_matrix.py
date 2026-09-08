@@ -402,6 +402,8 @@ def compute_ensemble_correlation_matrix(
         "ensemble_name": ensemble_name,
         "id_ons": id_ons,
         "aggregation": aggregation,
+        "algorithm": "LLS",
+        "algorithm_name": "Linear Least Squares (Mínimos Quadrados Lineares)",
         "has_data": True,
         "plants": plants,
         "series": series_rows,
