@@ -378,6 +378,20 @@ def fetch_and_cache_merra2(
         return cache_path
 
 
+def _normalize_merra2_df(df: pl.DataFrame | None) -> pl.DataFrame | None:
+    """Garante que a coluna wind_direction_100m esteja sempre presente nos DataFrames do MERRA-2."""
+    if df is None:
+        return None
+    if "wind_direction_100m" not in df.columns:
+        if "wind_direction_50m" in df.columns:
+            df = df.with_columns(pl.col("wind_direction_50m").alias("wind_direction_100m"))
+        elif "wind_direction_10m" in df.columns:
+            df = df.with_columns(pl.col("wind_direction_10m").alias("wind_direction_100m"))
+        else:
+            df = df.with_columns(pl.lit(0.0).alias("wind_direction_100m"))
+    return df
+
+
 def load_merra2_series(
     node_id: str,
     lat: float,
@@ -391,10 +405,10 @@ def load_merra2_series(
     if not cache_path.exists():
         existing_file = find_existing_merra2_file(lat, lon)
         if existing_file and existing_file.exists():
-            return pl.read_parquet(existing_file)
+            return _normalize_merra2_df(pl.read_parquet(existing_file))
         if auto_fetch:
             fetch_and_cache_merra2(node_id, lat, lon, start_year, end_year)
             if cache_path.exists():
-                return pl.read_parquet(cache_path)
+                return _normalize_merra2_df(pl.read_parquet(cache_path))
         return None
-    return pl.read_parquet(cache_path)
+    return _normalize_merra2_df(pl.read_parquet(cache_path))

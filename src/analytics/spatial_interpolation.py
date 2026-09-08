@@ -159,15 +159,29 @@ def interpolate_reanalysis_to_point(
 
     for pos in ["NW", "NE", "SW", "SE"]:
         if pos in node_dfs:
-            cur_df = node_dfs[pos].select(
+            n_df = node_dfs[pos]
+            wd100_col = (
+                pl.col("wind_direction_100m")
+                if "wind_direction_100m" in n_df.columns
+                else pl.col("wind_direction_50m")
+                if "wind_direction_50m" in n_df.columns
+                else pl.col("wind_direction_10m")
+            )
+            ws100_col = pl.col("wind_speed_100m")
+            ws10_col = pl.col("wind_speed_10m") if "wind_speed_10m" in n_df.columns else ws100_col
+            wd10_col = pl.col("wind_direction_10m") if "wind_direction_10m" in n_df.columns else wd100_col
+            t2m_col = pl.col("temperature_2m_c") if "temperature_2m_c" in n_df.columns else pl.lit(25.0)
+            ps_col = pl.col("surface_pressure_hpa") if "surface_pressure_hpa" in n_df.columns else pl.lit(1013.25)
+
+            cur_df = n_df.select(
                 [
                     pl.col("timestamp"),
-                    pl.col("wind_speed_100m").alias(f"ws100_{pos}"),
-                    pl.col("wind_direction_100m").alias(f"wd100_{pos}"),
-                    pl.col("wind_speed_10m").alias(f"ws10_{pos}"),
-                    pl.col("wind_direction_10m").alias(f"wd10_{pos}"),
-                    pl.col("temperature_2m_c").alias(f"t2m_{pos}"),
-                    pl.col("surface_pressure_hpa").alias(f"ps_{pos}"),
+                    ws100_col.alias(f"ws100_{pos}"),
+                    wd100_col.alias(f"wd100_{pos}"),
+                    ws10_col.alias(f"ws10_{pos}"),
+                    wd10_col.alias(f"wd10_{pos}"),
+                    t2m_col.alias(f"t2m_{pos}"),
+                    ps_col.alias(f"ps_{pos}"),
                 ]
             )
             aligned_df = aligned_df.join(cur_df, on="timestamp", how="inner")
