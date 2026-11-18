@@ -230,7 +230,7 @@ export const App: React.FC = () => {
   }, [ensembles]);
 
   // 6. Fetch Grid Nodes for Selected Ensemble (ONS)
-  const { data: nodesData, isLoading: isLoadingNodes } = useQuery({
+  const { data: nodesData } = useQuery({
     queryKey: ['nodes', selectedIdOns],
     queryFn: () => (selectedIdOns ? fetchNodes(selectedIdOns) : Promise.resolve(null)),
     enabled: !!selectedIdOns,
@@ -953,7 +953,6 @@ export const App: React.FC = () => {
                 />
 
                 <NodesGridTable
-                  substation={currentSubstation}
                   era5Nodes={currentNodesData?.era5_nodes || []}
                   merra2Nodes={currentNodesData?.merra2_nodes || []}
                   selectedNode={selectedNode}

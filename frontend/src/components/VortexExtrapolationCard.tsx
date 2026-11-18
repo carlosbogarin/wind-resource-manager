@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Layers,
   Sparkles,
   CheckCircle2,
   RefreshCw,

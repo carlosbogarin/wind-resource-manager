@@ -2,14 +2,12 @@ import axios from 'axios';
 import {
   CompanySummary,
   Ensemble,
-  EnsembleDetail,
   NodesResponse,
   DateRangeInfo,
   DownloadResponse,
   TimeSeriesResponse,
   AnalyticsData,
   CorrelationResponse,
-  OnsMeasuredResponse,
   EnsemblePlantsResponse,
   InterpolationRequest,
   InterpolationResponse,
@@ -44,11 +42,6 @@ export const fetchEnsembles = async (company: string): Promise<Ensemble[]> => {
   const { data } = await api.get<Ensemble[]>('/catalog/ensembles', {
     params: { company },
   });
-  return data;
-};
-
-export const fetchEnsembleDetails = async (id_ons: string): Promise<EnsembleDetail> => {
-  const { data } = await api.get<EnsembleDetail>(`/catalog/ensemble/${id_ons}`);
   return data;
 };
 
@@ -176,23 +169,6 @@ export const fetchCorrelationMatrix = async (
   return data;
 };
 
-
-export interface OnsMeasuredParams {
-  ensemble_name: string;
-  id_ons?: string;
-  plant_name?: string;
-  start_month?: string;
-  end_month?: string;
-  aggregation?: 'hourly' | 'daily' | 'monthly';
-}
-
-export const fetchOnsMeasured = async (params: OnsMeasuredParams): Promise<OnsMeasuredResponse> => {
-  const { data } = await api.get<OnsMeasuredResponse>('/reanalysis/ons-measured', {
-    params,
-  });
-  return data;
-};
-
 export interface AnalyticsParams {
   node_id: string;
   model: string;
@@ -244,7 +220,7 @@ export const getExportParquetUrl = (params: TimeSeriesParams): string => {
 
 const MET_MAST_SESSION_KEY = 'wrm_metmast_session_id';
 
-export const getMetMastSessionId = (): string => {
+const getMetMastSessionId = (): string => {
   if (typeof window === 'undefined') return 'default';
   let sid = sessionStorage.getItem(MET_MAST_SESSION_KEY);
   if (!sid) {

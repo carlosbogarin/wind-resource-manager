@@ -15,7 +15,7 @@ logger = logging.getLogger("etl.ons_eol_detail")
 
 def get_eol_detail_cache_dir() -> Path:
     """Retorna o diretório de cache local para séries extraídas do ONS EOL Detailed."""
-    cache_dir = settings.DATA_DIR / "ons_eolica_detail" / "cache"
+    cache_dir = settings.ONS_EOL_DETAIL_CACHE_DIR
     cache_dir.mkdir(parents=True, exist_ok=True)
     return cache_dir
 

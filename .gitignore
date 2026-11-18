@@ -24,14 +24,18 @@ env/
 venv/
 ENV/
 
-# DuckDB / Logs / Temp
+# DuckDB / Logs / Temp / Caches
 *.duckdb
 *.duckdb.wal
 .duckdb_temp/
 *.log
+*.tmp
 .tmp/
+.cache/
 .ruff_cache/
 .pytest_cache/
+.coverage
+htmlcov/
 
 # Node / Frontend
 frontend/node_modules/
@@ -51,8 +55,7 @@ frontend/*.tsbuildinfo
 *.swo
 .DS_Store
 
-# Reanalysis and raw downloads (large files, preserve catalog)
-data/raw/
+# Reanalysis and local data caches (large files, preserve versioned catalog)
 data/reanalysis/
 data/ons_eolica_detail/
 data/met_mast/

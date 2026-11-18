@@ -6,10 +6,8 @@ import {
   Layers,
   Check,
   ChevronRight,
-  TrendingUp,
   Table,
   Info,
-  Zap,
 } from 'lucide-react';
 import {
   CorrelationMatrixResponse,
@@ -67,7 +65,7 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
     return null;
   }
 
-  const { plants, series, best_per_plant, global_champion } = data;
+  const { plants, series, global_champion } = data;
 
   // Helper para verificar se a linha está ativa
   const isRowActive = (s: SeriesCorrelationRow) => {
@@ -236,7 +234,7 @@ export const ReanalysisRankingTable: React.FC<ReanalysisRankingTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/80">
-            {series.map((s, idx) => {
+            {series.map((s) => {
               const active = isRowActive(s);
               const isChamp = global_champion?.series_id === s.series_id;
 

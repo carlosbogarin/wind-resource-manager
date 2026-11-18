@@ -12,7 +12,7 @@ start "Wind Resource Manager - Backend API" cmd /k "call .venv\Scripts\activate.
 
 ping 127.0.0.1 -n 4 > nul
 
-echo Iniciando Frontend Web (React 19 + Vite) em http://localhost:5173...
+echo Iniciando Frontend Web (React 18 + Vite) em http://localhost:5173...
 start "Wind Resource Manager - Frontend Web" cmd /k "cd frontend && npm.cmd run dev"
 
 ping 127.0.0.1 -n 3 > nul

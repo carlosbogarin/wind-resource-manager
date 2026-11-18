@@ -3,24 +3,6 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --bg-primary: #f8fafc;
-    --bg-secondary: #ffffff;
-    --bg-card: #ffffff;
-    --text-primary: #0f172a;
-    --text-muted: #64748b;
-    --border-color: #e2e8f0;
-  }
-
-  .dark {
-    --bg-primary: #09090b;
-    --bg-secondary: #18181b;
-    --bg-card: #18181b;
-    --text-primary: #f4f4f5;
-    --text-muted: #a1a1aa;
-    --border-color: #27272a;
-  }
-
   body {
     @apply transition-colors duration-200 font-sans;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";

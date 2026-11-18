@@ -26,8 +26,8 @@ Abra o terminal (PowerShell) dentro da pasta `c:\Coding\Wind Resource Manager` e
 # 1. Adicionar todos os arquivos ao controle de versão
 git add .
 
-# 2. Criar o commit inicial com a versão 1.0.0
-git commit -m "feat: lancamento inicial do Wind Resource Manager v1.0.0"
+# 2. Criar o commit com a versão atual (ex: v2.0.0)
+git commit -m "feat: publicar Wind Resource Manager v2.0.0"
 
 # 3. Renomear a branch padrão para main (caso necessário)
 git branch -M main

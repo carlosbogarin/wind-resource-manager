@@ -1,10 +1,27 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+from src.core.config import settings
+
+
+@pytest.fixture(autouse=True)
+def isolated_met_mast_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
+    """Isola diretórios de upload e sessão do módulo Torres Anemométricas durante os testes."""
+    met_dir = tmp_path / "met_mast"
+    upload_dir = met_dir / "uploads"
+    sessions_dir = met_dir / "sessions"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    sessions_dir.mkdir(parents=True, exist_ok=True)
+
+    monkeypatch.setattr(settings, "MET_MAST_DIR", met_dir)
+    monkeypatch.setattr(settings, "MET_MAST_UPLOAD_DIR", upload_dir)
+    monkeypatch.setattr(settings, "MET_MAST_SESSIONS_DIR", sessions_dir)
 
 
 def test_met_mast_full_workflow():

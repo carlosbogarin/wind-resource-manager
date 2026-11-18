@@ -5,21 +5,27 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
-CATALOG_DIR = DATA_DIR / "catalog"
-REANALYSIS_DIR = DATA_DIR / "reanalysis"
-RAW_DIR = DATA_DIR / "raw"
-MET_MAST_DIR = DATA_DIR / "met_mast"
-MET_MAST_UPLOAD_DIR = MET_MAST_DIR / "uploads"
-MET_MAST_SESSIONS_DIR = MET_MAST_DIR / "sessions"
+from src.paths import (
+    CATALOG_DB_PATH,
+    CATALOG_DIR,
+    CATALOG_PARQUET,
+    DATA_DIR,
+    EXTERNAL_ONS_EOL_DETAIL_LOCAL_DIR,
+    MET_MAST_DIR,
+    MET_MAST_SESSIONS_DIR,
+    MET_MAST_UPLOAD_DIR,
+    ONS_EOL_DETAIL_CACHE_DIR,
+    ONS_EOL_DETAIL_DATA_DIR,
+    REANALYSIS_DIR,
+    ROOT_DIR,
+)
 
 
 class Settings(BaseSettings):
     """Configurações centrais do Wind Resource Manager."""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=ROOT_DIR / ".env",
         env_file_encoding="utf-8",
         extra="ignore",
     )
@@ -30,18 +36,18 @@ class Settings(BaseSettings):
     PORT: int = int(os.getenv("PORT", "8000"))
     HOST: str = "0.0.0.0"
 
-    # Diretórios
-    BASE_DIR: Path = BASE_DIR
+    # Diretórios (originados de src/paths.py)
+    BASE_DIR: Path = ROOT_DIR
     DATA_DIR: Path = DATA_DIR
     CATALOG_DIR: Path = CATALOG_DIR
     REANALYSIS_DIR: Path = REANALYSIS_DIR
-    RAW_DIR: Path = RAW_DIR
     MET_MAST_DIR: Path = MET_MAST_DIR
     MET_MAST_UPLOAD_DIR: Path = MET_MAST_UPLOAD_DIR
     MET_MAST_SESSIONS_DIR: Path = MET_MAST_SESSIONS_DIR
 
-    # Arquivos de dados
-    CATALOG_PARQUET: Path = CATALOG_DIR / "wind_catalog.parquet"
+    # Arquivos de dados e bancos locais
+    CATALOG_PARQUET: Path = CATALOG_PARQUET
+    CATALOG_DB_PATH: Path = CATALOG_DB_PATH
 
     # URLs ONS
     ONS_FATOR_CAPACIDADE_URL: str = "https://ons-aws-prod-opendata.s3.amazonaws.com/dataset/fator_capacidade_2_di/FATOR_CAPACIDADE-2_2026_08.parquet"
@@ -54,8 +60,9 @@ class Settings(BaseSettings):
     ONS_CKAN_EOL_DETAIL_URL: str = (
         "https://dados.ons.org.br/api/3/action/package_show?id=restricao_coff_eolica_detail"
     )
-    ONS_EOL_DETAIL_LOCAL_DIR: Path = Path("C:/Coding/Smart Curtailment/Inputs/ONS_eolica_detail")
-    ONS_EOL_DETAIL_DATA_DIR: Path = DATA_DIR / "ons_eolica_detail"
+    ONS_EOL_DETAIL_LOCAL_DIR: Path = EXTERNAL_ONS_EOL_DETAIL_LOCAL_DIR
+    ONS_EOL_DETAIL_DATA_DIR: Path = ONS_EOL_DETAIL_DATA_DIR
+    ONS_EOL_DETAIL_CACHE_DIR: Path = ONS_EOL_DETAIL_CACHE_DIR
 
     @property
     def ONS_EOL_DETAIL_DIR(self) -> Path:

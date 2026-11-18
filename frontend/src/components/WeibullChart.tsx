@@ -8,8 +8,6 @@ interface WeibullChartProps {
 
 export const WeibullChart: React.FC<WeibullChartProps> = ({ data }) => {
   const option = useMemo(() => {
-    const bins = data.histogram.map((h) => h.speed_center.toString());
-    const histFreq = data.histogram.map((h) => h.frequency_pct);
     const curvePoints = data.weibull_curve.map((c) => [c.speed, c.probability_pct]);
 
     return {

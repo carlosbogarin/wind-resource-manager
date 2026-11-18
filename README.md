@@ -37,7 +37,7 @@ O **Wind Resource Manager** é uma suíte analítica completa desenvolvida para 
 - **Pydantic v2 & Pydantic-Settings**: Validação rigorosa de esquemas e variáveis de ambiente.
 - **Ruff**: Linter e formatador de código de alta velocidade.
 
-### Frontend (TypeScript + React 19)
+### Frontend (TypeScript + React 18)
 - **Vite**: Bundler e servidor de desenvolvimento ultra-rápido.
 - **Tailwind CSS**: Estilização moderna com Dark Mode profissional inspirado em dashboards de ponta.
 - **Apache ECharts** (`echarts-for-react`): Motor gráfico de visualização com suporte a milhões de pontos.
@@ -92,8 +92,20 @@ python -m pytest tests/ -v
 Para validar a qualidade do código com o Ruff:
 ```powershell
 .\.venv\Scripts\activate
-ruff check src/ tests/
+ruff check src tests
 ```
+
+---
+
+## 📁 Estrutura do Projeto
+
+- `src/`: Pacote backend Python (`api/`, `analytics/`, `core/`, `database/`, `etl/`) com fonte única de caminhos em `src/paths.py`.
+- `frontend/`: Aplicação web React 18 + TypeScript + Vite + Tailwind CSS.
+- `data/`: Catálogo eólico versionado (`data/catalog/wind_catalog.parquet`) e caches/bancos locais.
+- `docs/`: Documentação auxiliar para humanos (veja [COMO_SUBIR_GITHUB.md](docs/COMO_SUBIR_GITHUB.md)).
+- `scripts/dev/`: Scripts auxiliares para iniciar backend ou frontend separadamente.
+- `tests/`: Suíte de testes Pytest com `tests/conftest.py`.
+- `AGENTS.md`: Fonte única de instruções para agentes de IA (`CLAUDE.md`, `GEMINI.md` e `.agent/rules/` apenas apontam para ele).
 
 ---
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import { SubstationGeo, ReanalysisNode } from '../types';
-import { Layers, Map as MapIcon, Search, Loader2, X, MapPin } from 'lucide-react';
+import { Search, Loader2, X, MapPin } from 'lucide-react';
 
 interface MapViewProps {
   substation: SubstationGeo | null;

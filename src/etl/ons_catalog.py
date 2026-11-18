@@ -8,6 +8,7 @@ from typing import Any
 import duckdb
 
 from src.core.config import settings
+from src.paths import EXTERNAL_CAPACIDADE_GERACAO_LOCAL
 
 logger = logging.getLogger("ons_catalog")
 logging.basicConfig(
@@ -44,8 +45,8 @@ def build_wind_catalog(force: bool = False) -> Path:
     rel_url = settings.ONS_RELACIONAMENTO_URL
     cap_url = settings.ONS_CAPACIDADE_GERACAO_URL
 
-    # Local fallback se existir no ambiente de desenvolvimento
-    local_cap = Path("c:/Coding/Smart Curtailment/data/raw/capacidade/CAPACIDADE_GERACAO.parquet")
+    # Fallback local se existir no ambiente de desenvolvimento
+    local_cap = EXTERNAL_CAPACIDADE_GERACAO_LOCAL
     cap_source = f"read_parquet('{local_cap.as_posix()}')" if local_cap.exists() else f"read_parquet('{cap_url}')"
 
     query = f"""

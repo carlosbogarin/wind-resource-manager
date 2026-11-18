@@ -4,6 +4,22 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.1] - 2026-11-18
+
+### 🧹 Reorganização Estrutural, Higiene de Código & Governança de IA
+- **Fonte Única de Caminhos ([`src/paths.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/paths.py)):**
+  - Centralização de todos os caminhos do projeto (`ROOT_DIR`, `DATA_DIR`, `CATALOG_DIR`, `CATALOG_PARQUET`, `CATALOG_DB_PATH`, `REANALYSIS_DIR`, `ONS_EOL_DETAIL_DATA_DIR`, `ONS_EOL_DETAIL_CACHE_DIR`, `MET_MAST_DIR`, `MET_MAST_UPLOAD_DIR`, `MET_MAST_SESSIONS_DIR` e caminhos locais externos opcionais) em `src/paths.py`.
+  - Atualização de [`src/core/config.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/core/config.py), [`src/database/reanalysis_catalog.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/database/reanalysis_catalog.py), [`src/etl/ons_catalog.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/ons_catalog.py) e [`src/etl/ons_eol_detail.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/etl/ons_eol_detail.py) para consumir `src.paths`, eliminando caminhos avulsos e a constante sem uso `RAW_DIR`.
+- **Instruções Únicas para Agentes de IA & Documentação:**
+  - Consolidação das regras em [`AGENTS.md`](file:///c:/Coding/Wind%20Resource%20Manager/AGENTS.md) na raiz (incluindo estrutura obrigatória de pastas e regras de organização/limpeza), com apontadores minimalistas em [`CLAUDE.md`](file:///c:/Coding/Wind%20Resource%20Manager/CLAUDE.md), [`GEMINI.md`](file:///c:/Coding/Wind%20Resource%20Manager/GEMINI.md) e [`.agent/rules/wind-resource-manager.md`](file:///c:/Coding/Wind%20Resource%20Manager/.agent/rules/wind-resource-manager.md), removendo `rules.md`.
+  - Movimentação de `COMO_SUBIR_GITHUB.md` via `git mv` para [`docs/COMO_SUBIR_GITHUB.md`](file:///c:/Coding/Wind%20Resource%20Manager/docs/COMO_SUBIR_GITHUB.md) e atualização do [`README.md`](file:///c:/Coding/Wind%20Resource%20Manager/README.md) e [`Iniciar_Wind_Resource_Manager.bat`](file:///c:/Coding/Wind%20Resource%20Manager/Iniciar_Wind_Resource_Manager.bat) (corrigindo a referência de `React 19` para `React 18`).
+- **Limpeza de Código Morto & Isolamento de Testes:**
+  - Remoção do componente órfão `CapacityFactorComparison.tsx`, variáveis CSS sem uso em [`frontend/src/index.css`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/index.css), escalas sem uso em [`frontend/tailwind.config.js`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/tailwind.config.js), exports/tipos mortos em [`frontend/src/services/api.ts`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/services/api.ts) e [`frontend/src/types/index.ts`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/types/index.ts), além de 15 imports/variáveis não utilizados nos componentes React.
+  - Criação de [`tests/conftest.py`](file:///c:/Coding/Wind%20Resource%20Manager/tests/conftest.py) e isolamento de [`tests/test_met_mast.py`](file:///c:/Coding/Wind%20Resource%20Manager/tests/test_met_mast.py) em `tmp_path` para não sujar `data/met_mast/`.
+  - Reforço do [`.gitignore`](file:///c:/Coding/Wind%20Resource%20Manager/.gitignore), [`.dockerignore`](file:///c:/Coding/Wind%20Resource%20Manager/.dockerignore) e [`Dockerfile`](file:///c:/Coding/Wind%20Resource%20Manager/Dockerfile).
+
+---
+
 ## [2.0.0] - 2026-11-17
 
 ### ✨ Consolidação Unificada: Módulo Integrado "Torres Anemométricas & LiDAR"

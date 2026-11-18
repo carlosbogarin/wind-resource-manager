@@ -1,9 +1,8 @@
 import React from 'react';
-import { Download, CheckCircle2, Clock, Navigation, Compass, ExternalLink, Loader2 } from 'lucide-react';
-import { ReanalysisNode, SubstationGeo } from '../types';
+import { Download, CheckCircle2, Clock, Loader2 } from 'lucide-react';
+import { ReanalysisNode } from '../types';
 
 interface NodesGridTableProps {
-  substation: SubstationGeo | null;
   era5Nodes: ReanalysisNode[];
   merra2Nodes: ReanalysisNode[];
   selectedNode: ReanalysisNode | null;
@@ -14,7 +13,6 @@ interface NodesGridTableProps {
 }
 
 export const NodesGridTable: React.FC<NodesGridTableProps> = ({
-  substation,
   era5Nodes,
   merra2Nodes,
   selectedNode,

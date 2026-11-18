@@ -10,10 +10,9 @@ import duckdb
 import polars as pl
 
 from src.core.config import settings
+from src.paths import CATALOG_DB_PATH
 
 logger = logging.getLogger("database.reanalysis_catalog")
-
-CATALOG_DB_PATH = settings.DATA_DIR / "reanalysis_catalog.duckdb"
 
 
 def _get_connection() -> duckdb.DuckDBPyConnection:

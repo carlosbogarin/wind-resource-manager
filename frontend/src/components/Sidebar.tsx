@@ -8,7 +8,6 @@ import {
   MapPin,
   Radio,
   ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 
 export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'met_mast' | 'methodology';

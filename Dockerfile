@@ -26,7 +26,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Criar diretórios de dados
-RUN mkdir -p data/catalog data/reanalysis data/raw data/met_mast/uploads data/met_mast/sessions
+RUN mkdir -p data/catalog data/reanalysis data/ons_eolica_detail/cache data/met_mast/uploads data/met_mast/sessions
 
 # Copiar catálogo compilado ONS e código-fonte
 COPY data/catalog/ ./data/catalog/

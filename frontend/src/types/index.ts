@@ -5,12 +5,6 @@ export interface CompanySummary {
   states: string[];
 }
 
-export interface FCHistoryItem {
-  mes_ano: string;
-  fc: number;
-  cap_mw: number;
-}
-
 export interface Ensemble {
   ensemble_name: string;
   id_ons: string;
@@ -24,11 +18,6 @@ export interface Ensemble {
   capacity_mw: number;
   plant_count: number;
   plants: string;
-}
-
-export interface EnsembleDetail extends Ensemble {
-  company_name: string;
-  fc_history: FCHistoryItem[];
 }
 
 export interface ReanalysisNode {
@@ -191,25 +180,6 @@ export interface CorrelationResponse {
   scatter_points: (ScatterPoint | [number, number, string])[];
 }
 
-export interface OnsMeasuredItem {
-  time: string;
-  speed_measured: number;
-  generation_mw: number;
-  invalid_flag_pct?: number;
-  invalid_flag_count?: number;
-  plant_speeds?: Record<string, number | null>;
-}
-
-export interface OnsMeasuredResponse {
-  ensemble_name: string;
-  id_ons?: string;
-  target_plant?: string;
-  available_plants?: string[];
-  total_points: number;
-  aggregation: string;
-  series: OnsMeasuredItem[];
-}
-
 export interface WeibullHistogramItem {
   speed_bin: string;
   speed_center: number;
@@ -263,13 +233,6 @@ export interface MonthlySeasonalityItem {
   std_speed: number;
 }
 
-export interface ONSCorrelationItem {
-  mes_ano: string;
-  ons_fc_pct: number;
-  capacity_mw: number;
-  reanalysis_wind_speed: number | null;
-}
-
 export interface AnalyticsData {
   node_id: string;
   model: string;
@@ -280,7 +243,6 @@ export interface AnalyticsData {
   wind_rose: WindRoseData;
   diurnal_profile: DiurnalProfileItem[];
   monthly_seasonality: MonthlySeasonalityItem[];
-  ons_correlation: ONSCorrelationItem[];
 }
 
 export interface PlantCorrelationMetric {
