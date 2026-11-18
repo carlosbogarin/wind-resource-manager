@@ -109,23 +109,21 @@ ruff check src tests
 
 ---
 
-## ☁️ Deploy em Produção
+## ☁️ Deploy em Produção & CI/CD
 
-### Backend: Google Cloud Run
-O projeto possui um `Dockerfile` otimizado para contêineres Linux no Google Cloud Run:
+Todo push na branch `main` dispara automaticamente o deploy contínuo do backend e do frontend:
+
+- **Frontend (Vercel):** https://wind-resource-manager.vercel.app (`Root Directory = frontend`, variável `VITE_API_URL` apontando para o Cloud Run).
+- **Backend (Google Cloud Run):** https://wind-resource-manager-api-1058325672361.us-central1.run.app (serviço `wind-resource-manager-api` no projeto `smart-curtailment`, região `us-central1`, `4Gi` RAM, `1` vCPU, timeout `300s`, atualizado via trigger do Cloud Build em `europe-west1`).
+
+### Deploy manual (se necessário)
 ```bash
-gcloud run deploy wind-resource-manager \
+gcloud run deploy wind-resource-manager-api \
+    --project smart-curtailment \
     --source . \
-    --region southamerica-east1 \
-    --platform managed \
+    --region us-central1 \
     --allow-unauthenticated \
-    --memory 2Gi \
-    --cpu 2
+    --memory 4Gi \
+    --cpu 1 \
+    --timeout 300
 ```
-
-### Frontend: Vercel
-1. Conecte o repositório GitHub ao Vercel.
-2. Defina a pasta raiz do projeto como `frontend`.
-3. Configure a variável de ambiente:
-   - `VITE_API_URL`: URL do seu backend no Cloud Run (ex: `https://wind-resource-manager-xxx.run.app`).
-4. O Vercel executará automaticamente `npm run build` e distribuirá na Edge Network global.

@@ -41,29 +41,27 @@ git push -u origin main
 
 ---
 
-### Passo 3: Conectar ao Vercel e Google Cloud Run
+### Passo 3: CI/CD Automático (Vercel + Google Cloud Run)
+
+O repositório `carlosbogarin/wind-resource-manager` já está conectado ao pipeline contínuo na branch `main`:
 
 #### Frontend no Vercel:
-1. Acesse [vercel.com](https://vercel.com) e clique em **Add New... -> Project**.
-2. Importe o repositório `wind-resource-manager`.
-3. Na seção **Root Directory**, clique em Edit e selecione a pasta:
-   ```
-   frontend
-   ```
-4. Em **Environment Variables**, adicione (opcionalmente após subir o backend):
-   - `VITE_API_URL`: URL do backend no Cloud Run (ex: `https://wind-resource-manager-xxx.run.app`)
-5. Clique em **Deploy**!
+- Projeto `wind-resource-manager` (`Root Directory = frontend`, framework `Vite`).
+- URL de produção: `https://wind-resource-manager.vercel.app`
+- Variável de ambiente `VITE_API_URL` apontando para `https://wind-resource-manager-api-1058325672361.us-central1.run.app`.
+- Todo `git push` na branch `main` inicia automaticamente o build e publicação na Vercel.
 
 #### Backend no Google Cloud Run:
-1. Certifique-se de ter o Google Cloud SDK (`gcloud`) instalado e autenticado.
-2. Na raiz do projeto `c:\Coding\Wind Resource Manager`, execute:
-   ```bash
-   gcloud run deploy wind-resource-manager \
-       --source . \
-       --region southamerica-east1 \
-       --platform managed \
-       --allow-unauthenticated \
-       --memory 2Gi \
-       --cpu 2
-   ```
-3. O Cloud Run fornecerá uma URL HTTPS (ex: `https://wind-resource-manager-xxx.southamerica-east1.run.app`) que você poderá colar na variável `VITE_API_URL` do Vercel.
+- Serviço `wind-resource-manager-api` no projeto GCP `smart-curtailment` (região `us-central1`, `4Gi` de memória, `1` vCPU, timeout `300s`).
+- Trigger `cloudrun-wind-resource-manager-api-us-central1-main` (Cloud Build em `europe-west1` via Developer Connect) recompila o `Dockerfile` e atualiza o Cloud Run automaticamente a cada push na branch `main`.
+- Caso precise executar um deploy manual a partir da raiz `c:\Coding\Wind Resource Manager`:
+  ```bash
+  gcloud run deploy wind-resource-manager-api \
+      --project smart-curtailment \
+      --source . \
+      --region us-central1 \
+      --allow-unauthenticated \
+      --memory 4Gi \
+      --cpu 1 \
+      --timeout 300
+  ```

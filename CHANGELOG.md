@@ -4,6 +4,18 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.2] - 2026-11-18
+
+### ☁️ Deploy em Produção & CI/CD Automático (Cloud Run + Vercel)
+- **Backend no Google Cloud Run (`wind-resource-manager-api`):**
+  - Publicação no projeto `smart-curtailment` (região `us-central1`, `4Gi` RAM, `1` vCPU, timeout `300s`, `--cpu-boost`) com trigger contínuo no Cloud Build (`europe-west1`) via Developer Connect disparado automaticamente a cada `push` na branch `main`.
+- **Frontend na Vercel (`wind-resource-manager`):**
+  - Projeto configurado com `Root Directory = frontend`, `VITE_API_URL` apontando para o serviço no Cloud Run e deploy automático conectado à branch `main` do GitHub.
+- **Documentação atualizada:**
+  - Registro das URLs de produção e do fluxo de CI/CD em [`README.md`](file:///c:/Coding/Wind%20Resource%20Manager/README.md) e [`docs/COMO_SUBIR_GITHUB.md`](file:///c:/Coding/Wind%20Resource%20Manager/docs/COMO_SUBIR_GITHUB.md).
+
+---
+
 ## [2.0.1] - 2026-11-18
 
 ### 🧹 Reorganização Estrutural, Higiene de Código & Governança de IA
