@@ -55,5 +55,6 @@ frontend/*.tsbuildinfo
 data/raw/
 data/reanalysis/
 data/ons_eolica_detail/
+data/met_mast/
 !data/catalog/wind_catalog.parquet
 

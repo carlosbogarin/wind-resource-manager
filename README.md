@@ -1,40 +1,29 @@
 # Wind Resource Manager 🌪️⚡
 
-**Sistema Padrão Ouro para Gestão de Recursos Eólicos, Catalogação ONS e Reanálise Histórica de 30 Anos (ERA5 & MERRA-2)**
+**Plataforma Unificada de Avaliação de Recurso Eólico: Reanálises de 30 Anos (ERA5 & MERRA-2), Catálogo ONS e Campanhas Anemométricas (Met Masts / LiDAR)**
 
-O **Wind Resource Manager** é uma plataforma analítica de alta performance desenvolvida para engenharia de vento, inteligência de mercado e planejamento da geração eólica no Brasil. O sistema correlaciona dados regulatórios e georreferenciados do Operador Nacional do Sistema Elétrico (ONS) com as malhas meteorológicas globais de reanálise **ERA5 (ECMWF)** e **MERRA-2 (NASA)**.
+O **Wind Resource Manager** é uma suíte analítica completa desenvolvida para engenharia de vento, operação e planejamento da geração eólica. O sistema integra geoprocessamento de dados regulatórios do Operador Nacional do Sistema Elétrico (ONS), malhas meteorológicas globais de reanálise **ERA5 (ECMWF)** e **MERRA-2 (NASA)** com correlação MCP (LLS & TLS), além de um módulo completo para tratamento e diagnóstico avançado de **Torres Anemométricas e LiDAR** alimentado pelo motor científico **BrightWind**.
 
 ---
 
-## 🚀 Principais Funcionalidades
+## 🚀 Principais Módulos & Funcionalidades
 
-1. **Catálogo Georreferenciado ONS de Parques Eólicos**:
-   - Ingestão colunar automatizada cruzando:
-     - `FATOR_CAPACIDADE`: coordenadas geodésicas da Subestação Coletora (`val_latitudesecoletora`, `val_longitudesecoletora`), potência e histórico mensal verificado.
-     - `RELACIONAMENTO_USINA_CONJUNTO`: mapeia código ONS do conjunto (`CJU_...`) para o CEG das usinas.
-     - `CAPACIDADE_GERACAO`: mapeia o CEG para a empresa operadora (`nom_agenteoperador`).
-   - Mais de 150 conjuntos eólicos e dezenas de gigawatts catalogados com indexação colunar em **Parquet**.
+1. **Reanálises - ONS & Catálogo Georreferenciado**:
+   - Ingestão colunar automatizada cruzando `FATOR_CAPACIDADE`, `RELACIONAMENTO_USINA_CONJUNTO` e `CAPACIDADE_GERACAO` (150+ conjuntos eólicos e dezenas de GW catalogados em **Parquet**).
+   - Matriz comparativa de correlação e ranking de séries vs medições reais das usinas ONS via algoritmos **LLS (Linear Least Squares)** e **TLS (Total Least Squares / Ortogonal)** à escolha do usuário.
 
-2. **Motor Geodésico de Malhas de Reanálise**:
-   - Cálculo espacial instantâneo dos **4 nós circundantes** da grade **ERA5** (0,25° x 0,25°, ~28 km) e **MERRA-2** (0,5° x 0,625°, ~50 km).
-   - Cálculo de distâncias esféricas de grande círculo via fórmula de Haversine (km), azimute/direção cardeal e pesos de interpolação por inverso da distância ponderada (IDW).
+2. **Reanálises - Manual & Motor Geodésico**:
+   - Cálculo espacial dos **4 nós circundantes** da grade **ERA5** (0,25° x 0,25°, ~28 km) e **MERRA-2** (0,5° x 0,625°, ~50 km), distâncias Haversine, azimute e **Extrapolação Espacial Vetorial Horizontal (IDW)** diretamente para qualquer coordenada ou clique no mapa Leaflet.
+   - Cache incremental em DuckDB + Parquet de séries horárias históricas de 30 anos.
 
-3. **Download de Séries Temporais de 30 Anos sob Demanda**:
-   - Conector oficial de alta velocidade para o acervo de reanálise histórica do **ERA5** (velocidade do vento a 100m e 10m, direção, pressão e temperatura desde 1940).
-   - Conector **NASA POWER / MERRA-2** (velocidade do vento a 50m e 10m, extrapolação ao rotor via lei de potência de cisalhamento).
-   - Cache colunar local em Parquet com zero re-download e tempo de resposta < 50ms.
+3. **Torres Anemométricas & LiDAR (Motor BrightWind)**:
+   - **Importação & Mapeamento**: Upload de campanhas `.csv`, `.txt`, `.dat` e `.tim` (CSV, Campbell Scientific CR1000, loggers tabulares) com detecção automática de cotas de altura, orientação de booms e matriz de disponibilidade (*coverage %*).
+   - **Controle de Qualidade (QC)**: Motor de filtragem por limites físicos de velocidade, setor direcional de sombra de torre (*Mast Shadow*), gelo e estagnação de sensores, com visualização interativa comparativa e zoom.
+   - **Análises Eólicas IEC**: Rosa dos Ventos (12/16 setores), Perfil de Cisalhamento Vertical (Power Law $\alpha$ e Log Law $z_0$ extrapolado ao cubo), Intensidade de Turbulência (TI) comparada às curvas **IEC 61400-1 NTM Classes A, B e C**, Matriz Diurna-Sazonal (`12x24`) e Distribuição de Weibull (MLE).
+   - **Exportação**: Geração de arquivos `.tab` no padrão **WAsP**, exportação de CSV tratado pós-QC e integração direta de coordenadas com o módulo de reanálises.
 
-4. **Visualização Gráfica Padrão Ouro (Apache ECharts & Leaflet)**:
-   - **Mapa Interativo (Leaflet)**: Destaque da SE Coletora (marcador com pulso dinâmico), nós ERA5 (polígono ciano) e nós MERRA-2 (polígono âmbar) com popups de distância e clique rápido.
-   - **Séries Temporais com Zoom**: Gráfico contínuo com slider `dataZoom`, alternância diária/mensal/horária e ferramentas de exportação.
-   - **Rosa dos Ventos (16 Setores)**: Gráfico polar direcional com faixas de velocidade padronizadas e detecção automática do setor dominante.
-   - **Distribuição de Weibull**: Histograma empírico comparado à curva de probabilidade teórica (cálculo de $k$, $c$ e velocidade média $V_{med}$).
-   - **Perfil Diurno Médio**: Ciclo horário térmico (00h a 23h) com bandas percentílicas P10 e P90.
-   - **Sazonalidade Mensal**: Regime anual dos ventos alísios e ciclo de safra eólica no Brasil.
-   - **Correlação Real ONS**: Validação do vento reanalisado em relação ao Fator de Capacidade ($FC$) histórico verificado da usina.
-
-5. **Exportação de Dados**:
-   - Exportação em um clique em **CSV** e **Parquet** colunar.
+4. **Metodologia & Rigor Normativo**:
+   - Documentação interativa das formulações geodésicas, vetoriais, MCP (LLS & TLS), cisalhamento vertical e referências acadêmicas internacionais (WMO, IEC 61400-1, IEC 61400-12-1, MEASNET).
 
 ---
 

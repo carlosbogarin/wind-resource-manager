@@ -6,11 +6,12 @@ import {
   X,
   Compass,
   MapPin,
+  Radio,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 
-export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'methodology';
+export type ActiveModule = 'reanalysis' | 'reanalysis_manual' | 'met_mast' | 'methodology';
 
 interface SidebarProps {
   activeModule: ActiveModule;
@@ -124,7 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <span className={`text-[10px] font-mono font-medium px-1.5 py-0.5 rounded shrink-0 leading-none ${
                     isLight ? 'text-cyan-700 bg-cyan-50 border border-cyan-200' : 'text-cyan-400 bg-cyan-950/80 border border-cyan-800/60'
                   }`}>
-                    v1.6.0
+                    v2.0.0
                   </span>
                 </div>
 
@@ -242,11 +243,38 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
           </button>
-          {/* Module 3: Metodologia */}
+
+          {/* Module 3: Torres Anemométricas & LiDAR */}
+          <button
+            type="button"
+            onClick={() => handleSelect('met_mast')}
+            title="Torres Anemométricas & LiDAR (QC, Shear, IEC TI & WAsP)"
+            className={`w-full h-12 flex items-center ${
+              isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
+            } rounded-xl text-xs font-semibold transition-all text-left ${
+              activeModule === 'met_mast'
+                ? 'bg-gradient-to-r from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-600/30'
+                : isLight
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-900'
+            }`}
+          >
+            <Radio className="w-6 h-6 shrink-0" />
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0">
+                <span className="truncate">Torres Anemométricas</span>
+                <span className={`text-[10px] font-normal ${activeModule === 'met_mast' ? 'text-sky-100' : 'text-zinc-500'} truncate`}>
+                  Dados Medidos, QC & WAsP
+                </span>
+              </div>
+            )}
+          </button>
+
+          {/* Module 4: Metodologia */}
           <button
             type="button"
             onClick={() => handleSelect('methodology')}
-            title="Metodologia (Fórmulas, IDW & Malhas)"
+            title="Metodologia (Fórmulas, IDW, MCP, QC & IEC)"
             className={`w-full h-12 flex items-center ${
               isCollapsed ? 'justify-center px-0' : 'gap-3 px-3'
             } rounded-xl text-xs font-semibold transition-all text-left ${
@@ -262,7 +290,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex flex-col min-w-0">
                 <span className="truncate">Metodologia</span>
                 <span className={`text-[10px] font-normal ${activeModule === 'methodology' ? 'text-amber-100' : 'text-zinc-500'} truncate`}>
-                  Fórmulas, IDW & Malhas
+                  Fórmulas, MCP, QC & IEC
                 </span>
               </div>
             )}

@@ -10,6 +10,9 @@ DATA_DIR = BASE_DIR / "data"
 CATALOG_DIR = DATA_DIR / "catalog"
 REANALYSIS_DIR = DATA_DIR / "reanalysis"
 RAW_DIR = DATA_DIR / "raw"
+MET_MAST_DIR = DATA_DIR / "met_mast"
+MET_MAST_UPLOAD_DIR = MET_MAST_DIR / "uploads"
+MET_MAST_SESSIONS_DIR = MET_MAST_DIR / "sessions"
 
 
 class Settings(BaseSettings):
@@ -22,7 +25,7 @@ class Settings(BaseSettings):
     )
 
     PROJECT_NAME: str = "Wind Resource Manager"
-    VERSION: str = "1.6.0"
+    VERSION: str = "2.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development")
     PORT: int = int(os.getenv("PORT", "8000"))
     HOST: str = "0.0.0.0"
@@ -33,6 +36,9 @@ class Settings(BaseSettings):
     CATALOG_DIR: Path = CATALOG_DIR
     REANALYSIS_DIR: Path = REANALYSIS_DIR
     RAW_DIR: Path = RAW_DIR
+    MET_MAST_DIR: Path = MET_MAST_DIR
+    MET_MAST_UPLOAD_DIR: Path = MET_MAST_UPLOAD_DIR
+    MET_MAST_SESSIONS_DIR: Path = MET_MAST_SESSIONS_DIR
 
     # Arquivos de dados
     CATALOG_PARQUET: Path = CATALOG_DIR / "wind_catalog.parquet"

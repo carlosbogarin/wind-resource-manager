@@ -4,6 +4,24 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.0] - 2026-11-17
+
+### ✨ Consolidação Unificada: Módulo Integrado "Torres Anemométricas & LiDAR"
+- **Unificação Arquitetural Completa**:
+  - Incorporação nativa das capacidades de engenharia de torres anemométricas (Met Masts / LiDAR) diretamente na plataforma **Wind Resource Manager**, eliminando projetos paralelos redundantes e mantendo uma única interface unificada com suporte completo aos modos Claro e Escuro (`theme: 'light' | 'dark'`).
+- **Backend Modular com BrightWind & Isolamento por Sessão**:
+  - Criado o motor [`src/analytics/met_mast.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/analytics/met_mast.py), esquemas Pydantic v2 em [`src/api/schemas/met_mast.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/api/schemas/met_mast.py) e rotas REST `/api/met-mast/*` em [`src/api/routes/met_mast.py`](file:///c:/Coding/Wind%20Resource%20Manager/src/api/routes/met_mast.py).
+  - Isolamento por sessão (`X-MetMast-Session` / `X-Portal-User`) com persistência leve em disco e sanitização estrita de caminhos no upload (`.csv`, `.txt`, `.dat`, `.tim`).
+  - Compatibilidade multi-ambiente garantida para Localhost, Vercel (`VITE_API_URL`) e Google Cloud Run ([`Dockerfile`](file:///c:/Coding/Wind%20Resource%20Manager/Dockerfile) com `MPLBACKEND=Agg`).
+- **Frontend Integrado (`MetMastStudio`)**:
+  - Novo módulo **"Torres Anemométricas"** na barra lateral ([`Sidebar.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/Sidebar.tsx)) e cabeçalho ([`Header.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/Header.tsx)).
+  - Sub-abas completas em `frontend/src/components/metmast/`: **Dados & Sensores** (`MetMastDataTab`), **Controle de Qualidade** (`MetMastQCTab`), **Análises Eólicas** (`MetMastAnalysisTab` com Rosa dos Ventos, Wind Shear Power/Log Law, Turbulência IEC 61400-1 Classes A/B/C, Matriz `12x24` e Weibull MLE) e **Exportação** (`MetMastExportTab` para WAsP `.tab`, CSV tratado pós-QC e ponte direta de coordenadas para `Reanálises - Manual`).
+- **Documentação & Testes Automatizados**:
+  - Atualizado [`MethodologyView.tsx`](file:///c:/Coding/Wind%20Resource%20Manager/frontend/src/components/MethodologyView.tsx) cobrindo QC anemométrico, cisalhamento vertical e turbulência IEC 61400-1 com referências acadêmicas.
+  - Adicionada suíte completa de testes em [`tests/test_met_mast.py`](file:///c:/Coding/Wind%20Resource%20Manager/tests/test_met_mast.py).
+
+---
+
 ## [1.6.0] - 2026-09-07
 
 ### ✨ Módulo "Reanálises - Manual" & Extrapolação Espacial Vetorial Horizontal (Padrão Vortex FdC)

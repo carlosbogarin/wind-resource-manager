@@ -25,10 +25,13 @@ const MODULE_METADATA: Record<
     title: 'Reanálises - Manual',
     description: 'Coordenadas Geográficas Alvo & Extrapolação Horizontal Geodésica',
   },
-
+  met_mast: {
+    title: 'Torres Anemométricas & LiDAR',
+    description: 'Campanhas de Campo, Controle de Qualidade (QC), Cisalhamento Vertical, IEC 61400-1 & WAsP (.tab)',
+  },
   methodology: {
     title: 'Metodologia',
-    description: 'Formulação Matemática, Padrões Normativos (WMO/IEC) & Malhas de Reanálise',
+    description: 'Formulação Matemática, MCP (LLS/TLS), Padrões Normativos (WMO/IEC) & Malhas de Reanálise',
   },
 };
 

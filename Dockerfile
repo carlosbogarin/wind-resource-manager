@@ -9,6 +9,7 @@ WORKDIR /app
 # Variáveis de ambiente para contêiner
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
+    MPLBACKEND=Agg \
     TZ=America/Sao_Paulo \
     PORT=8080
 
@@ -25,7 +26,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Criar diretórios de dados
-RUN mkdir -p data/catalog data/reanalysis data/raw
+RUN mkdir -p data/catalog data/reanalysis data/raw data/met_mast/uploads data/met_mast/sessions
 
 # Copiar catálogo compilado ONS e código-fonte
 COPY data/catalog/ ./data/catalog/

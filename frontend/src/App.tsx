@@ -32,6 +32,7 @@ import { WindRoseChart } from './components/WindRoseChart';
 import { WeibullChart } from './components/WeibullChart';
 import { ExportToolbar } from './components/ExportToolbar';
 import { MethodologyView } from './components/MethodologyView';
+import { MetMastStudio } from './components/metmast/MetMastStudio';
 import {
   BarChart3,
   Compass,
@@ -1191,7 +1192,28 @@ export const App: React.FC = () => {
           )}
 
           {/* ======================================================== */}
-          {/* MODULE 3: METODOLOGIA                                    */}
+          {/* MODULE 3: TORRES ANEMOMÉTRICAS & LIDAR                   */}
+          {/* ======================================================== */}
+          {activeModule === 'met_mast' && (
+            <MetMastStudio
+              theme={theme}
+              onOpenCoordsInReanalysis={(lat, lon, siteName) => {
+                setManualLat(lat);
+                setManualLon(lon);
+                if (siteName.trim()) {
+                  setManualSiteName(siteName.trim());
+                }
+                setActiveModule('reanalysis_manual');
+                setNotification({
+                  type: 'info',
+                  text: `Coordenadas da torre (${lat.toFixed(4)}, ${lon.toFixed(4)}) carregadas em Reanálises - Manual.`,
+                });
+              }}
+            />
+          )}
+
+          {/* ======================================================== */}
+          {/* MODULE 4: METODOLOGIA                                    */}
           {/* ======================================================== */}
           {activeModule === 'methodology' && (
             <MethodologyView theme={theme} />
@@ -1203,10 +1225,10 @@ export const App: React.FC = () => {
           isLight ? 'border-slate-200 bg-white text-slate-500' : 'border-zinc-900 bg-zinc-950 text-zinc-500'
         }`}>
           <p>
-            <strong>Wind Resource Manager</strong> • Avaliação de Recurso Eólico no Brasil
+            <strong>Wind Resource Manager</strong> • Suíte Integrada de Avaliação de Recurso Eólico
           </p>
           <p className="mt-1 text-[11px] text-zinc-500">
-            Dados: ONS (Anemômetros & Metadados Operacionais) • ECMWF ERA5 (0.25°) • NASA MERRA-2 (0.5°x0.625°)
+            Dados: ONS (Anemômetros & Metadados Operacionais) • ECMWF ERA5 (0.25°) • NASA MERRA-2 (0.5°x0.625°) • Torres Anemométricas / LiDAR (BrightWind Engine)
           </p>
         </footer>
       </div>

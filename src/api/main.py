@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.api.routes.catalog import router as catalog_router
 from src.api.routes.export import router as export_router
+from src.api.routes.met_mast import router as met_mast_router
 from src.api.routes.reanalysis import router as reanalysis_router
 from src.core.config import settings
 from src.etl.ons_catalog import build_wind_catalog
@@ -27,6 +28,8 @@ async def lifespan(app: FastAPI):
     settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
     settings.CATALOG_DIR.mkdir(parents=True, exist_ok=True)
     settings.REANALYSIS_DIR.mkdir(parents=True, exist_ok=True)
+    settings.MET_MAST_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    settings.MET_MAST_SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
 
     # Verificar se o catálogo de parques eólicos já existe
     if not settings.CATALOG_PARQUET.exists():
@@ -71,6 +74,7 @@ app.add_middleware(
 app.include_router(catalog_router, prefix="/api")
 app.include_router(reanalysis_router, prefix="/api")
 app.include_router(export_router, prefix="/api")
+app.include_router(met_mast_router, prefix="/api")
 
 
 @app.get("/")

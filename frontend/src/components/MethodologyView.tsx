@@ -10,6 +10,8 @@ import {
   TrendingUp,
   CheckCircle2,
   Table,
+  Radio,
+  Activity,
 } from 'lucide-react';
 
 interface MethodologyViewProps {
@@ -449,6 +451,97 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
         </div>
       </div>
 
+      {/* SECTION: Torres Anemométricas, Controle de Qualidade (QC), Cisalhamento & Turbulência IEC */}
+      <div className={`p-6 rounded-2xl border ${
+        isLight ? 'bg-gradient-to-b from-white to-sky-50/20 border-sky-200' : 'bg-gradient-to-b from-zinc-900 to-sky-950/20 border-sky-900/50'
+      } space-y-5 shadow-sm`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-sky-500/20 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-gradient-to-tr from-sky-600 to-indigo-500 text-white shadow-md shadow-sky-500/20">
+              <Radio className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                Torres Anemométricas & LiDAR: Controle de Qualidade, Cisalhamento & IEC 61400-1
+              </h3>
+              <p className="text-xs text-sky-600 dark:text-sky-400 font-medium">
+                Campanhas de Campo, Motor BrightWind & Classificação Estrutural de Sítios Eólicos
+              </p>
+            </div>
+          </div>
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20 shrink-0 self-start sm:self-auto font-mono">
+            <Activity className="w-3.5 h-3.5" />
+            IEC 61400-1 / MEASNET
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          {/* 1. QC de Torre */}
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+          }`}>
+            <h4 className="font-bold text-slate-900 dark:text-white">
+              1. Controle de Qualidade Anemométrica (QC)
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+              Aplicação determinística de máscaras booleanas de validação antes do cálculo estatístico ou exportação:
+            </p>
+            <ul className="list-disc list-inside space-y-1 text-[11px] opacity-90">
+              <li><strong>Limites Físicos:</strong> descarte de valores espúrios fora de [V_min, V_max].</li>
+              <li><strong>Efeito de Esteira (Mast Shadow):</strong> exclusão direcional nos setores atrás da estrutura treliçada da torre (com suporte a travessia pelo Norte 0°/360°).</li>
+              <li><strong>Congelamento / Estagnação:</strong> filtragem combinada de temperatura ≤ T_lim com desvio padrão horizontal σ ≤ σ_min.</li>
+            </ul>
+          </div>
+
+          {/* 2. Cisalhamento Vertical */}
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+          }`}>
+            <h4 className="font-bold text-slate-900 dark:text-white">
+              2. Perfil de Cisalhamento Vertical (Wind Shear)
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+              Extrapolação multi-cota para alturas de rotor (Hub Height) via Lei de Potência de Hellmann e Perfil Logarítmico Neutro de Prandtl (Manwell et al., 2009):
+            </p>
+            <div className={`p-2.5 rounded-lg font-mono text-[10px] space-y-1 ${
+              isLight ? 'bg-slate-50 text-slate-800' : 'bg-zinc-900 text-cyan-300'
+            }`}>
+              <div><strong>Power Law:</strong> V(z) = V(z_ref) · (z / z_ref)^α</div>
+              <div><strong>Log Law:</strong> V(z) = V(z_ref) · ln(z / z_0) / ln(z_ref / z_0)</div>
+            </div>
+          </div>
+
+          {/* 3. Turbulência IEC 61400-1 */}
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+          }`}>
+            <h4 className="font-bold text-slate-900 dark:text-white">
+              3. Intensidade de Turbulência & IEC 61400-1 NTM
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+              Quantificação de TI = σ_v / V_10min e TI Característica (percentil 90%) por bin de 1 m/s comparada ao Normal Turbulence Model (NTM) das Classes A (I_ref = 0,16), B (0,14) e C (0,12):
+            </p>
+            <div className={`p-2.5 rounded-lg font-mono text-[10px] ${
+              isLight ? 'bg-slate-50 text-slate-800' : 'bg-zinc-900 text-cyan-300'
+            }`}>
+              TI_90(V) = I_ref · (0,75 + 5,6 / V)
+            </div>
+          </div>
+
+          {/* 4. Entregáveis WAsP & 12x24 */}
+          <div className={`p-4 rounded-xl border space-y-2 ${
+            isLight ? 'bg-white border-slate-200 text-slate-700' : 'bg-zinc-950 border-zinc-800 text-zinc-300'
+          }`}>
+            <h4 className="font-bold text-slate-900 dark:text-white">
+              4. Matriz Diurna-Sazonal (12x24) & Exportação WAsP (.tab)
+            </h4>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 leading-relaxed">
+              Geração da matriz média de ciclos horários por mês (12 × 24) e compilação da tabela bidimensional observada de frequências direcionais no padrão WAsP (<code>.tab</code>), além da série CSV tratada pós-QC.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Classic Mathematical Formulations */}
       <div className={`p-6 rounded-2xl border ${isLight ? 'bg-white border-slate-200' : 'bg-zinc-900 border-zinc-800'} space-y-5 text-xs text-slate-600 dark:text-zinc-300 shadow-sm`}>
         <h3 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-zinc-800 pb-2">
@@ -590,6 +683,20 @@ export const MethodologyView: React.FC<MethodologyViewProps> = ({ theme = 'dark'
             <div>
               <strong>Deming, W. E. (1943).</strong> <em>"Statistical Adjustment of Data"</em>. John Wiley & Sons, New York.
               <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Tratamento estatístico de erros de medição bivariados simultâneos (regressão ortogonal de Deming).</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[14]</span>
+            <div>
+              <strong>International Electrotechnical Commission - IEC. (2019).</strong> <em>"IEC 61400-1: Wind energy generation systems - Part 1: Design requirements (Edition 4.0)"</em>. International Standard.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Especificação normativa do Modelo Normal de Turbulência (NTM Classes A, B e C) e parâmetros estruturais de sítio.</span>
+            </div>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="font-mono text-cyan-600 dark:text-cyan-400 font-bold shrink-0">[15]</span>
+            <div>
+              <strong>Manwell, J. F., McGowan, J. G., & Rogers, A. L. (2009).</strong> <em>"Wind Energy Explained: Theory, Design and Application"</em> (2nd Ed.). John Wiley & Sons, Chichester.
+              <span className="text-slate-400 dark:text-zinc-500 block text-[10px]">Referência clássica para camada limite atmosférica, perfis de cisalhamento vertical (Power/Log Laws), turbulência e avaliação de recurso eólico.</span>
             </div>
           </li>
         </ul>

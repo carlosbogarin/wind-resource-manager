@@ -338,3 +338,143 @@ export interface CorrelationMatrixResponse {
   global_champion: ChampionInfo | null;
   message?: string | null;
 }
+
+// --- Torres Anemométricas & LiDAR (Met Mast Studio) ---
+
+export interface MetMastDatasetItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'builtin' | 'uploaded';
+  filename: string;
+}
+
+export interface MetMastColumnInfo {
+  name: string;
+  role:
+    | 'speed'
+    | 'direction'
+    | 'speed_std'
+    | 'speed_max'
+    | 'speed_min'
+    | 'temperature'
+    | 'humidity'
+    | 'pressure'
+    | 'battery'
+    | 'other';
+  height: number | null;
+  orientation: string;
+  unit: string;
+}
+
+export interface MetMastColumnStat {
+  coverage_pct: number;
+  mean: number | null;
+  min: number | null;
+  max: number | null;
+  std: number | null;
+}
+
+export interface MetMastQCResult {
+  total_points: number;
+  valid_points: number;
+  flagged_points: number;
+  valid_pct: number;
+  flagged_by_rule: Record<string, number>;
+}
+
+export interface MetMastLoadedDataset {
+  dataset_id: string;
+  session_id?: string;
+  total_rows: number;
+  start_time: string;
+  end_time: string;
+  sampling_interval_min: number;
+  columns: MetMastColumnInfo[];
+  stats: Record<string, MetMastColumnStat>;
+  qc_applied?: boolean;
+  qc_summary?: MetMastQCResult | null;
+}
+
+export interface MetMastTimeseriesResponse {
+  timestamps: string[];
+  series: Record<string, (number | null)[]>;
+  valid_mask: boolean[];
+  total_raw_points: number;
+  sampled_points: number;
+  downsample_factor: number;
+  qc_applied?: boolean;
+}
+
+export interface MetMastWindRoseSector {
+  sector_index: number;
+  label: string;
+  center_angle: number;
+  frequency_pct: number;
+  mean_speed: number;
+  count: number;
+  speed_bins: number[];
+}
+
+export interface MetMastWindRoseData {
+  sectors: number;
+  sector_width: number;
+  total_records: number;
+  mean_speed: number;
+  speed_bin_labels: string[];
+  sector_data: MetMastWindRoseSector[];
+}
+
+export interface MetMastShearPoint {
+  height: number;
+  speed: number;
+  column: string;
+}
+
+export interface MetMastShearExtrapolated {
+  hub_height: number;
+  power_law_speed: number;
+  speed_increase_pct: number;
+}
+
+export interface MetMastWindShearData {
+  alpha: number;
+  roughness_z0: number | null;
+  reference_height: number;
+  reference_speed: number;
+  measured_points: MetMastShearPoint[];
+  profile_curve: { height: number; speed: number }[];
+  extrapolated_hub_heights: MetMastShearExtrapolated[];
+}
+
+export interface MetMastTurbulenceBin {
+  speed_bin: number;
+  mean_ti: number;
+  characteristic_ti_90: number;
+  count: number;
+  iec_class_a: number;
+  iec_class_b: number;
+  iec_class_c: number;
+}
+
+export interface MetMastTurbulenceData {
+  speed_column: string;
+  std_column: string;
+  speed_bins: MetMastTurbulenceBin[];
+  char_ti_at_15ms: number | null;
+}
+
+export interface MetMast12x24Data {
+  months: string[];
+  hours: string[];
+  matrix: (number | null)[][];
+}
+
+export interface MetMastWeibullData {
+  k_shape: number;
+  c_scale: number;
+  mean_speed: number;
+  std_speed?: number | null;
+  histogram: { speed: number; bin_label: string; empirical_freq_pct: number }[];
+  fitted_curve: { speed: number; weibull_pdf_pct: number }[];
+}
