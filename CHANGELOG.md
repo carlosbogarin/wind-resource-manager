@@ -4,6 +4,14 @@ Todas as alterações notáveis neste projeto serão documentadas neste arquivo.
 O formato é baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/)
 e este projeto adere ao [Semantic Versioning](https://semver.org/lang/pt-BR/).
 
+## [2.0.3] - 2026-11-18
+
+### 🔧 Ajuste de Autor Git Local para Auto-Deploy na Vercel
+- Configurado `user.name` (`carlosbogarin`) e `user.email` (`bogarin.carlos@gmail.com`) no `.git/config` local do repositório para que todos os pushes na branch `main` sejam reconhecidos pela Vercel sem bloqueio de autor em repositório privado.
+- Adicionada orientação correspondente em [`docs/COMO_SUBIR_GITHUB.md`](file:///c:/Coding/Wind%20Resource%20Manager/docs/COMO_SUBIR_GITHUB.md).
+
+---
+
 ## [2.0.2] - 2026-11-18
 
 ### ☁️ Deploy em Produção & CI/CD Automático (Cloud Run + Vercel)

@@ -50,6 +50,7 @@ O repositório `carlosbogarin/wind-resource-manager` já está conectado ao pipe
 - URL de produção: `https://wind-resource-manager.vercel.app`
 - Variável de ambiente `VITE_API_URL` apontando para `https://wind-resource-manager-api-1058325672361.us-central1.run.app`.
 - Todo `git push` na branch `main` inicia automaticamente o build e publicação na Vercel.
+- **Importante (Git local):** no plano Hobby da Vercel com repositório privado, o autor do commit (`git config user.email`) precisa pertencer à sua conta GitHub/Vercel (`bogarin.carlos@gmail.com` ou `carlosbogarin@users.noreply.github.com`); este repositório já está configurado localmente em `.git/config` com `carlosbogarin` / `bogarin.carlos@gmail.com`.
 
 #### Backend no Google Cloud Run:
 - Serviço `wind-resource-manager-api` no projeto GCP `smart-curtailment` (região `us-central1`, `4Gi` de memória, `1` vCPU, timeout `300s`).
